@@ -1,0 +1,7 @@
+<ul>
+  @for (audioData of loadedMusicDatas(); track audioData.id) {
+    <li [class.selected]="audioData.id === selectedId()" (click)="selected.emit(audioData)">
+      {{audioData.name}}
+    </li>
+  }
+</ul>
