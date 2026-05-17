@@ -1,0 +1,15 @@
+<p>audio-player works!</p>
+<audio #audioPlayer controls>
+    <source [src]="audioUrl">
+</audio>
+<button (click)="uploadAudio()">Upload</button>
+<input type="file" (change)="selectFile($event)" multiple>
+<button (click)="getAllAudioDatas()">Load all audio</button>
+<button (click)="this.loadedMusicDatas.set([])">Clear loaded audio</button>
+<ul>
+  @for (musicData of loadedMusicDatas(); track musicData.id) {
+    <li>
+      {{musicData.name}} <button>Play</button>
+    </li>
+  }
+</ul>
