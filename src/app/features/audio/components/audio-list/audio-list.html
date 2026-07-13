@@ -1,7 +1,25 @@
-<ul>
-  @for (audioData of loadedMusicDatas(); track audioData.id) {
-    <li [class.selected]="audioData.id === selectedId()" (click)="selected.emit(audioData)">
-      {{audioData.name}}
-    </li>
-  }
-</ul>
+@if (loading()) {
+  <p class="state-message">Cargando...</p>
+} @else if (errorMessage() && loadedMusicDatas().length === 0) {
+  <p class="state-message state-error">{{ errorMessage() }}</p>
+} @else if (loadedMusicDatas().length === 0) {
+  <p class="state-message">No hay canciones. Sube un MP3 para empezar.</p>
+} @else {
+  <ul class="track-list">
+    @for (audioData of loadedMusicDatas(); track audioData.id) {
+      <li [class.selected]="audioData.id === selectedId()">
+        <button type="button" class="track-button" (click)="selected.emit(audioData)">
+          <span class="track-name">{{ audioData.name }}</span>
+        </button>
+        <button
+          type="button"
+          class="delete-button"
+          aria-label="Eliminar {{ audioData.name }}"
+          (click)="requestDelete(audioData, $event)"
+        >
+          Eliminar
+        </button>
+      </li>
+    }
+  </ul>
+}
