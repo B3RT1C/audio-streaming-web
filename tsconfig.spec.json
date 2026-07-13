@@ -6,7 +6,12 @@
     "outDir": "./out-tsc/spec",
     "types": [
       "vitest/globals"
-    ]
+    ],
+    "paths": {
+      "@music-streaming/shared": [
+        "../audio-streaming-shared/typescript/src/index.ts"
+      ]
+    }
   },
   "include": [
     "src/**/*.d.ts",
