@@ -1,41 +1,33 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
+import { environment } from '../../../../environments/environment';
+import { Track, API_PATHS } from '@music-streaming/shared';
 
 @Injectable({
   providedIn: 'root',
 })
 export class AudioService {
-  private http = inject(HttpClient)
+  private http = inject(HttpClient);
+  private readonly songUrl = `${environment.apiUrl}${API_PATHS.songs}`;
 
-  private url = 'http://localhost:8080/song'
-
-  getAllAudioDatas(): Observable<AudioDataModel[]> {
-    return this.http.get<AudioDataModel[]>(this.url)
-  }
-
-  getAudioFile(id: number): Observable<ArrayBuffer> {
-    let arrayBuffer = this.http.get(this.url + '/file', {
-      params: {id: id},
-      responseType: 'arraybuffer'
-    })
-    return arrayBuffer
+  getAllAudioDatas(): Observable<Track[]> {
+    return this.http.get<Track[]>(this.songUrl);
   }
 
   postAudioFile(file: File): Observable<AudioResponse> {
-    const formData = new FormData()
-    formData.append('file', file)
-    return this.http.post<AudioResponse>(this.url + '/file', formData)
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<AudioResponse>(`${this.songUrl}/file`, formData);
+  }
+
+  deleteSong(id: number): Observable<void> {
+    return this.http.delete<void>(this.songUrl, { params: { id } });
   }
 }
 
 export interface AudioResponse {
-  message: string
+  message: string;
 }
 
-export interface AudioDataModel {
-  id: number
-  path: string
-  name: string
-  extension: string
-}
+export type AudioDataModel = Track;
