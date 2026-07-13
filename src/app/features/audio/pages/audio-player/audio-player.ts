@@ -7,6 +7,7 @@ import {
   signal,
   ViewChild,
 } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { AudioDataModel, AudioService } from '../../services/audio-service';
 import { PlaybackResolver } from '../../services/playback-resolver';
 import { AudioList } from '../../components/audio-list/audio-list';
@@ -184,16 +185,31 @@ export class AudioPlayer implements OnInit {
 
     let completedUploads = 0;
     let failedUploads = 0;
+    let firstFailureMessage: string | null = null;
 
     for (const file of files) {
       this.audioService.postAudioFile(file).subscribe({
         next: () => {
           completedUploads++;
-          this.finishUploadBatch(completedUploads, failedUploads, files.length);
+          this.finishUploadBatch(
+            completedUploads,
+            failedUploads,
+            files.length,
+            firstFailureMessage
+          );
         },
-        error: () => {
+        error: (err: unknown) => {
           failedUploads++;
-          this.finishUploadBatch(completedUploads, failedUploads, files.length);
+          if (!firstFailureMessage) {
+            firstFailureMessage = this.getFriendlyUploadErrorMessage(err);
+          }
+
+          this.finishUploadBatch(
+            completedUploads,
+            failedUploads,
+            files.length,
+            firstFailureMessage
+          );
         },
       });
     }
@@ -211,8 +227,9 @@ export class AudioPlayer implements OnInit {
 
         this.getAllAudioDatas();
       },
-      error: () => {
-        this.errorMessage.set('No se pudo eliminar la canción.');
+      error: (err: unknown) => {
+        const serverMessage = this.extractBackendMessage(err);
+        this.errorMessage.set(serverMessage ?? 'No se pudo eliminar la canción.');
       },
     });
   }
@@ -234,7 +251,12 @@ export class AudioPlayer implements OnInit {
     });
   }
 
-  private finishUploadBatch(completed: number, failed: number, total: number): void {
+  private finishUploadBatch(
+    completed: number,
+    failed: number,
+    total: number,
+    firstFailureMessage: string | null
+  ): void {
     if (completed + failed < total) {
       return;
     }
@@ -247,10 +269,10 @@ export class AudioPlayer implements OnInit {
       );
     } else if (completed === 0) {
       this.uploadMessage.set('');
-      this.errorMessage.set('No se pudieron subir las canciones.');
+      this.errorMessage.set(firstFailureMessage ?? 'No se pudieron subir las canciones.');
     } else {
       this.uploadMessage.set(`${completed} de ${total} canciones añadidas.`);
-      this.errorMessage.set(`Fallaron ${failed} subida(s).`);
+      this.errorMessage.set(firstFailureMessage ?? `Fallaron ${failed} subida(s).`);
     }
 
     if (completed > 0) {
@@ -286,5 +308,52 @@ export class AudioPlayer implements OnInit {
 
   private getCurrentTrackIndex(): number {
     return this.loadedMusicDatas().findIndex((track) => track.id === this.playingId());
+  }
+
+  private getFriendlyUploadErrorMessage(err: unknown): string {
+    if (err instanceof HttpErrorResponse && err.status === 409) {
+      const backendMessage = this.extractBackendMessage(err);
+      if (backendMessage) {
+        const normalized = backendMessage.toLowerCase();
+        if (normalized.includes('name') && normalized.includes('already exists')) {
+          return 'Ya existe una canción con ese nombre.';
+        }
+        if (normalized.includes('content') && normalized.includes('already exists')) {
+          return 'Ya existe una canción con el mismo contenido.';
+        }
+      }
+
+      return 'Ya existe una canción con ese nombre.';
+    }
+
+    const backendMessage = this.extractBackendMessage(err);
+    return backendMessage ?? 'No se pudo subir la canción.';
+  }
+
+  private extractBackendMessage(err: unknown): string | null {
+    if (!(err instanceof HttpErrorResponse)) {
+      return null;
+    }
+
+    const payload = err.error;
+    if (!payload) {
+      return null;
+    }
+
+    if (typeof payload === 'string') {
+      try {
+        const parsed = JSON.parse(payload) as { message?: unknown };
+        return typeof parsed?.message === 'string' ? parsed.message : null;
+      } catch {
+        return null;
+      }
+    }
+
+    if (typeof payload === 'object' && 'message' in payload) {
+      const message = (payload as { message?: unknown }).message;
+      return typeof message === 'string' ? message : null;
+    }
+
+    return null;
   }
 }
