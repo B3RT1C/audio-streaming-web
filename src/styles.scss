@@ -1,5 +1,41 @@
-/* You can add global styles to this file, and also import other style files */
-html {
-    background-color: #121212;
-    color: white;
+:root {
+  --bg: #121212;
+  --surface: #1e1e1e;
+  --surface-hover: #2a2a2a;
+  --border: #333;
+  --accent: #1e3a5f;
+  --accent-hover: #2a5080;
+  --accent-soft: rgba(30, 58, 95, 0.22);
+  --danger: #e91429;
+  --danger-hover: #ff1f36;
+  --text: #ffffff;
+  --text-muted: #b3b3b3;
+  --radius: 8px;
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+input[type='range'] {
+  accent-color: var(--accent);
+  width: 100%;
 }

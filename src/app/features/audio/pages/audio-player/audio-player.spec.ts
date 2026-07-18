@@ -1,4 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 
 import { AudioPlayer } from './audio-player';
 
@@ -8,9 +10,9 @@ describe('AudioPlayer', () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [AudioPlayer]
-    })
-    .compileComponents();
+      imports: [AudioPlayer],
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    }).compileComponents();
 
     fixture = TestBed.createComponent(AudioPlayer);
     component = fixture.componentInstance;

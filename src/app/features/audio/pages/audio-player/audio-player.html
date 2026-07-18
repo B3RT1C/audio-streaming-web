@@ -1,8 +1,96 @@
-<audio #audioPlayer controls autoplay (ended)="nextAudio()">
-    <source [src]="audioUrl">
-</audio>
-<button (click)="uploadAudio()">Upload</button>
-<input type="file" (change)="selectFile($event)" multiple>
-<button (click)="getAllAudioDatas()">Load all audio</button>
-<button (click)="this.loadedMusicDatas.set([])">Clear loaded audio</button>
-<app-audio-list [loadedMusicDatas]="loadedMusicDatas()" [selectedId]="playingId()" (selected)="this.loadAudio($event.id)"></app-audio-list>
+<div class="app-shell">
+  <header class="app-header">
+    <h1>Music Streaming</h1>
+    <p class="subtitle">Tu biblioteca personal de audio</p>
+  </header>
+
+  <section class="panel now-playing">
+    <h2>Reproduciendo</h2>
+    <p class="track-name">{{ currentTrack()?.name ?? '—' }}</p>
+
+    <audio
+      #audioPlayer
+      class="audio-element"
+      (ended)="nextAudio()"
+      (timeupdate)="onTimeUpdate()"
+      (loadedmetadata)="onLoadedMetadata()"
+      (play)="onPlay()"
+      (pause)="onPause()"
+    >
+      <source [src]="audioUrl">
+    </audio>
+
+    <div class="progress-row">
+      <span class="time">{{ formatTime(currentTime()) }}</span>
+      <input
+        type="range"
+        class="progress-bar"
+        [min]="0"
+        [max]="duration() || 0"
+        [value]="currentTime()"
+        [disabled]="!currentTrack()"
+        (input)="onSeek($event)"
+      >
+      <span class="time">{{ formatTime(duration()) }}</span>
+    </div>
+
+    <div class="transport">
+      <button type="button" class="control-btn" aria-label="Anterior" (click)="previousAudio()">⏮</button>
+      <button type="button" class="control-btn control-btn-primary" aria-label="Reproducir" (click)="togglePlayPause()">
+        {{ isPlaying() ? '⏸' : '▶' }}
+      </button>
+      <button type="button" class="control-btn" aria-label="Detener" (click)="stop()">⏹</button>
+      <button type="button" class="control-btn" aria-label="Siguiente" (click)="nextAudio()">⏭</button>
+    </div>
+  </section>
+
+  <section class="panel library">
+    <div class="section-header">
+      <h2>Biblioteca</h2>
+      <span class="badge">{{ trackCount() }} canciones</span>
+    </div>
+
+    @if (errorMessage()) {
+      <p class="message message-error">{{ errorMessage() }}</p>
+    }
+
+    <app-audio-list
+      [loadedMusicDatas]="loadedMusicDatas()"
+      [selectedId]="playingId()"
+      [loading]="loading()"
+      [errorMessage]="errorMessage()"
+      (selected)="loadAudio($event.id)"
+      (delete)="deleteAudio($event)"
+    ></app-audio-list>
+  </section>
+
+  <section class="panel upload-panel">
+    <h2>Añadir canción</h2>
+
+    <div
+      class="dropzone"
+      [class.dropzone-active]="isDragging()"
+      (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave($event)"
+      (drop)="onDrop($event)"
+    >
+      <p>Arrastra archivos MP3 aquí</p>
+      <p class="dropzone-hint">o</p>
+      <button type="button" class="btn btn-primary" [disabled]="uploading()" (click)="openFilePicker()">
+        Seleccionar archivos
+      </button>
+      <input
+        #fileInput
+        type="file"
+        class="file-input-hidden"
+        accept="audio/mpeg,audio/mp3"
+        multiple
+        (change)="onFileSelected($event)"
+      >
+    </div>
+
+    @if (uploadMessage()) {
+      <p class="message message-success">{{ uploadMessage() }}</p>
+    }
+  </section>
+</div>

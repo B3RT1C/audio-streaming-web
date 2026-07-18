@@ -1,14 +1,83 @@
+.state-message {
+  margin: 0;
+  padding: 1.5rem 0.5rem;
+  text-align: center;
+  color: var(--text-muted);
+}
 
-ul {
-    list-style: none;
-    padding: 0;
-    li {
-        &.selected {
-            color: lightblue;
-            background-color: black;
-        }
-        &:hover {
-            background-color: #3d3d3d;
-        }
+.state-error {
+  color: #ff6b6b;
+}
+
+.track-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: var(--radius);
+    transition: background 0.15s ease;
+
+    &:hover {
+      background: var(--surface-hover);
     }
+
+    &.selected {
+      background: var(--accent-soft);
+
+      .track-name {
+        color: #7eb8ff;
+      }
+    }
+  }
+}
+
+.track-button,
+.delete-button {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.track-button {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  padding: 0.65rem 0.75rem;
+}
+
+.track-name {
+  display: block;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.delete-button {
+  flex-shrink: 0;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem 0.75rem;
+  margin-right: 0.25rem;
+  border-radius: var(--radius);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  transition: color 0.15s ease, background 0.15s ease;
+
+  &:hover {
+    color: var(--danger);
+    background: rgba(233, 20, 41, 0.12);
+  }
 }
