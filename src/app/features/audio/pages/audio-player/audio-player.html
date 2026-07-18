@@ -94,3 +94,12 @@
     }
   </section>
 </div>
+
+@if (uploadDrafts(); as drafts) {
+  <app-upload-dialog
+    [drafts]="drafts"
+    [busy]="uploading()"
+    (confirmed)="confirmUploadDialog($event)"
+    (cancelled)="cancelUploadDialog()"
+  ></app-upload-dialog>
+}

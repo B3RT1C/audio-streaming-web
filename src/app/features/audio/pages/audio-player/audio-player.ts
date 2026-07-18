@@ -11,10 +11,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { AudioDataModel, AudioService } from '../../services/audio-service';
 import { PlaybackResolver } from '../../services/playback-resolver';
 import { AudioList } from '../../components/audio-list/audio-list';
+import { UploadDialog } from '../../components/upload-dialog/upload-dialog';
+import { createUploadDraft, UploadDraft } from '../../models/upload-draft';
 
 @Component({
   selector: 'app-audio-player',
-  imports: [AudioList],
+  imports: [AudioList, UploadDialog],
   templateUrl: './audio-player.html',
   styleUrl: './audio-player.scss',
 })
@@ -33,6 +35,7 @@ export class AudioPlayer implements OnInit {
   uploadMessage = signal('');
   uploading = signal(false);
   isDragging = signal(false);
+  uploadDrafts = signal<UploadDraft[] | null>(null);
 
   currentTime = signal(0);
   duration = signal(0);
@@ -146,7 +149,7 @@ export class AudioPlayer implements OnInit {
   public onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     if (input.files?.length) {
-      this.uploadFiles(Array.from(input.files));
+      this.openUploadDialog(Array.from(input.files));
       input.value = '';
     }
   }
@@ -170,12 +173,33 @@ export class AudioPlayer implements OnInit {
     );
 
     if (files.length > 0) {
-      this.uploadFiles(files);
+      this.openUploadDialog(files);
     }
   }
 
-  public uploadFiles(files: File[]): void {
-    if (files.length === 0) {
+  public cancelUploadDialog(): void {
+    if (this.uploading()) {
+      return;
+    }
+    this.uploadDrafts.set(null);
+  }
+
+  public confirmUploadDialog(drafts: UploadDraft[]): void {
+    this.submitUploads(drafts);
+  }
+
+  private openUploadDialog(files: File[]): void {
+    if (files.length === 0 || this.uploading()) {
+      return;
+    }
+
+    this.errorMessage.set('');
+    this.uploadMessage.set('');
+    this.uploadDrafts.set(files.map(createUploadDraft));
+  }
+
+  private submitUploads(drafts: UploadDraft[]): void {
+    if (drafts.length === 0) {
       return;
     }
 
@@ -187,14 +211,14 @@ export class AudioPlayer implements OnInit {
     let failedUploads = 0;
     let firstFailureMessage: string | null = null;
 
-    for (const file of files) {
-      this.audioService.postAudioFile(file).subscribe({
+    for (const draft of drafts) {
+      this.audioService.postAudioFile(draft.file, draft.name).subscribe({
         next: () => {
           completedUploads++;
           this.finishUploadBatch(
             completedUploads,
             failedUploads,
-            files.length,
+            drafts.length,
             firstFailureMessage
           );
         },
@@ -207,7 +231,7 @@ export class AudioPlayer implements OnInit {
           this.finishUploadBatch(
             completedUploads,
             failedUploads,
-            files.length,
+            drafts.length,
             firstFailureMessage
           );
         },
@@ -262,6 +286,7 @@ export class AudioPlayer implements OnInit {
     }
 
     this.uploading.set(false);
+    this.uploadDrafts.set(null);
 
     if (failed === 0) {
       this.uploadMessage.set(
