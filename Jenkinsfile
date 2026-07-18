@@ -17,6 +17,11 @@ pipeline {
             bat 'npm ci || npm install'
           }
         }
+        stage('Contract') {
+          steps {
+            bat 'node scripts\\ci\\check-api-contract.mjs'
+          }
+        }
         stage('Test') {
           steps {
             bat 'npm test'
@@ -35,14 +40,33 @@ pipeline {
       }
     }
     stage('Integration') {
+      when {
+        anyOf {
+          branch 'main'
+          tag pattern: 'v*', comparator: 'GLOB'
+        }
+      }
       steps {
-        // No agent: do not hold an executor while waiting (avoids deadlock).
-        build job: 'music-streaming/integration', wait: true, propagate: true
+        build job: 'audio-streaming/integration', wait: true, propagate: true
       }
     }
     stage('Deploy staging') {
+      when { branch 'main' }
       steps {
-        build job: 'music-streaming/deploy-staging-web', wait: true, propagate: true
+        build job: 'audio-streaming/deploy-staging-web', wait: true, propagate: true
+      }
+    }
+    stage('Staging smoke') {
+      when { branch 'main' }
+      steps {
+        build job: 'audio-streaming/staging-smoke', wait: true, propagate: true
+      }
+    }
+    stage('Tag release') {
+      when { tag pattern: 'v*', comparator: 'GLOB' }
+      agent any
+      steps {
+        echo "Release tag ${env.TAG_NAME}: web dist archived from Build stage; no staging deploy from tags."
       }
     }
   }

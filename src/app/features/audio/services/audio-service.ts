@@ -9,20 +9,20 @@ import { API_PATHS, Track } from '../models/track';
 })
 export class AudioService {
   private http = inject(HttpClient);
-  private readonly songUrl = `${environment.apiUrl}${API_PATHS.songs}`;
+  private readonly audiosUrl = `${environment.apiUrl}${API_PATHS.audios}`;
 
   getAllAudioDatas(): Observable<Track[]> {
-    return this.http.get<Track[]>(this.songUrl);
+    return this.http.get<Track[]>(this.audiosUrl);
   }
 
   postAudioFile(file: File): Observable<AudioResponse> {
     const formData = new FormData();
     formData.append('file', file);
-    return this.http.post<AudioResponse>(`${this.songUrl}/file`, formData);
+    return this.http.post<AudioResponse>(this.audiosUrl, formData);
   }
 
   deleteSong(id: number): Observable<void> {
-    return this.http.delete<void>(this.songUrl, { params: { id } });
+    return this.http.delete<void>(`${this.audiosUrl}/${id}`);
   }
 }
 

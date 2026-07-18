@@ -7,7 +7,6 @@ export interface Track {
 }
 
 export const API_PATHS = {
-  songs: '/song',
-  songFile: '/song/file',
+  audios: '/audios',
   syncStatus: '/sync/status',
 } as const;
