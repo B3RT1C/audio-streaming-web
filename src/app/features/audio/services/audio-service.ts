@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../environments/environment';
-import { Track, API_PATHS } from '@music-streaming/shared';
+import { API_PATHS, Track } from '../models/track';
 
 @Injectable({
   providedIn: 'root',

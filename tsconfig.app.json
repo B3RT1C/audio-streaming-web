@@ -6,12 +6,7 @@
     "outDir": "./out-tsc/app",
     "types": [
       "node"
-    ],
-    "paths": {
-      "@music-streaming/shared": [
-        "../audio-streaming-shared/typescript/src/index.ts"
-      ]
-    }
+    ]
   },
   "include": [
     "src/**/*.ts"
