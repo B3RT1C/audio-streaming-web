@@ -15,9 +15,12 @@ export class AudioService {
     return this.http.get<Track[]>(this.audiosUrl);
   }
 
-  postAudioFile(file: File): Observable<AudioResponse> {
+  postAudioFile(file: File, name?: string): Observable<AudioResponse> {
     const formData = new FormData();
     formData.append('file', file);
+    if (name?.trim()) {
+      formData.append('name', name.trim());
+    }
     return this.http.post<AudioResponse>(this.audiosUrl, formData);
   }
 
