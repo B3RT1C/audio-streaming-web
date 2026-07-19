@@ -35,7 +35,7 @@ UI en `http://localhost:4200`.
 - Controles previous / play-pause / stop / next
 - Subir MP3 (selector + drag & drop)
 - Borrar canciones
-- Feedback de carga, vacío y errores (p. ej. nombre duplicado)
+- Feedback de carga, vacío y errores (API / red / reproducción)
 
 ## Configuración
 
