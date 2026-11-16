@@ -1,11 +1,5 @@
 <div class="dialog-backdrop" (click)="onBackdropClick($event)">
-  <div
-    class="dialog"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="upload-dialog-title"
-    (click)="$event.stopPropagation()"
-  >
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="upload-dialog-title" (click)="$event.stopPropagation()">
     <header class="dialog-header">
       <h2 id="upload-dialog-title">Detalles de la subida</h2>
       <p class="dialog-subtitle">
@@ -13,12 +7,10 @@
         {{ drafts().length === 1 ? 'la canción' : 'las canciones' }}.
       </p>
     </header>
-
     <div class="dialog-body">
       @for (draft of drafts(); track draft.file.name + $index; let i = $index) {
         <fieldset class="draft-fields" [disabled]="busy()">
           <legend>{{ draft.file.name }}</legend>
-
           <label class="field">
             <span class="field-label">Nombre</span>
             <input
@@ -32,14 +24,25 @@
           </label>
         </fieldset>
       }
+      @if (busy()) {
+        <div class="upload-progress">
+          <div
+            class="upload-bar"
+            role="progressbar"
+            [attr.aria-valuenow]="progress() ?? 0"
+            aria-valuemin="0"
+            aria-valuemax="100"
+          >
+            <span [style.width.%]="progress() ?? 0"></span>
+          </div>
+          <p class="upload-status">{{ status() || 'Subiendo…' }}</p>
+        </div>
+      }
     </div>
-
     <footer class="dialog-actions">
-      <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="cancel()">
-        Cancelar
-      </button>
+      <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="cancel()">Cancelar</button>
       <button type="button" class="btn btn-primary" [disabled]="!canConfirm()" (click)="confirm()">
-        {{ busy() ? 'Subiendo...' : 'Subir' }}
+        {{ busy() ? 'Subiendo…' : 'Subir' }}
       </button>
     </footer>
   </div>

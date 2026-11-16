@@ -1,83 +1,141 @@
-.state-message {
+.state {
   margin: 0;
-  padding: 1.5rem 0.5rem;
+  padding: 1.5rem 0.25rem;
   text-align: center;
   color: var(--text-muted);
 }
 
 .state-error {
-  color: #ff6b6b;
+  color: #ff8d9a;
 }
 
-.track-list {
+.tracks {
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.4rem;
+}
 
-  li {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    border-radius: var(--radius);
-    transition: background 0.15s ease;
+.tracks li {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 4.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  border-radius: 12px;
+  background: transparent;
 
-    &:hover {
-      background: var(--surface-hover);
-    }
+  &:hover,
+  &.selected {
+    background: var(--surface-2);
+  }
 
-    &.selected {
-      background: var(--accent-soft);
-
-      .track-name {
-        color: #7eb8ff;
-      }
-    }
+  &.selected .title {
+    color: var(--accent-hover);
   }
 }
 
-.track-button,
-.delete-button {
-  border: none;
+.track-main {
+  display: grid;
+  grid-template-columns: 1.6rem minmax(0, 1fr) auto;
+  gap: 0.55rem;
+  align-items: center;
+  width: 100%;
+  border: 0;
   background: transparent;
-  color: inherit;
-  cursor: pointer;
+  text-align: left;
+  padding: 0.55rem 0.65rem 0.15rem;
+  min-height: 3rem;
+
+  &:disabled {
+    cursor: default;
+  }
 }
 
-.track-button {
-  flex: 1;
+.num {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  text-align: right;
+}
+
+.meta {
   min-width: 0;
   display: flex;
-  align-items: center;
-  text-align: left;
-  padding: 0.65rem 0.75rem;
+  flex-direction: column;
 }
 
-.track-name {
-  display: block;
-  line-height: 1.2;
-  white-space: nowrap;
+.title,
+.sub {
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.delete-button {
-  flex-shrink: 0;
-  align-self: center;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.45rem 0.75rem;
-  margin-right: 0.25rem;
-  border-radius: var(--radius);
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  transition: color 0.15s ease, background 0.15s ease;
+.title {
+  font-weight: 650;
+}
 
-  &:hover {
-    color: var(--danger);
-    background: rgba(233, 20, 41, 0.12);
+.sub {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  min-height: 1.1rem;
+}
+
+.dur {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  padding: 0 0.4rem 0.4rem 2.2rem;
+}
+
+.icon-btn,
+.text-btn {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 999px;
+  min-height: 2.25rem;
+  padding: 0.2rem 0.65rem;
+}
+
+.icon-btn {
+  min-width: 2.25rem;
+  font-size: 1rem;
+}
+
+.text-btn-danger:hover:not(:disabled),
+.icon-btn:hover:not(:disabled),
+.text-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+.text-btn-danger:hover:not(:disabled) {
+  color: #ffb4c0;
+}
+
+@media (min-width: 800px) {
+  .tracks li {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .track-main {
+    flex: 1;
+    padding-bottom: 0.55rem;
+  }
+
+  .row-actions {
+    padding: 0 0.35rem 0 0;
+    flex-wrap: nowrap;
   }
 }

@@ -5,6 +5,7 @@ const CODE_MESSAGES: Record<string, string> = {
   FILE_REQUIRED: 'Falta el archivo de audio.',
   INVALID_NAME: 'El nombre no es válido.',
   INVALID_FILE: 'El archivo no es válido.',
+  FILE_TOO_LARGE: 'El archivo es demasiado grande (máximo 500 MB).',
   NOT_FOUND: 'No se encontró la canción.',
   STORAGE_ERROR: 'Error al guardar el archivo.',
   INTERNAL: 'Algo salió mal. Inténtalo de nuevo.',
@@ -18,7 +19,11 @@ const OPERATION_FALLBACKS: Record<ApiOperation, string> = {
   upload: 'No se pudo subir la canción.',
   delete: 'No se pudo eliminar la canción.',
   playback: CODE_MESSAGES['PLAYBACK_ERROR'],
+  metadata: 'No se pudieron guardar los datos de la canción.',
+  playlist: 'No se pudo actualizar la lista.',
 };
+
+const SIZE_CODES = new Set(['FILE_TOO_LARGE', 'PAYLOAD_TOO_LARGE', 'MAX_UPLOAD_SIZE']);
 
 export function extractApiError(err: unknown): ApiErrorBody | null {
   if (!(err instanceof HttpErrorResponse)) {
@@ -52,13 +57,17 @@ export function toUserMessage(operation: ApiOperation, err: unknown): string {
   }
 
   const body = extractApiError(err);
+  if (isSizeError(err, body)) {
+    return CODE_MESSAGES['FILE_TOO_LARGE'];
+  }
+
   if (body?.code && CODE_MESSAGES[body.code]) {
     return CODE_MESSAGES[body.code];
   }
 
   if (err instanceof HttpErrorResponse) {
     if (err.status === 404) {
-      return CODE_MESSAGES['NOT_FOUND'];
+      return operation === 'playlist' ? 'No se encontró la lista.' : CODE_MESSAGES['NOT_FOUND'];
     }
     if (err.status >= 500) {
       return CODE_MESSAGES['INTERNAL'];
@@ -74,4 +83,19 @@ export function playbackErrorMessage(): string {
 
 export function codeMessage(code: ApiErrorCode): string {
   return CODE_MESSAGES[code];
+}
+
+function isSizeError(err: unknown, body: ApiErrorBody | null): boolean {
+  if (body?.code && SIZE_CODES.has(body.code)) {
+    return true;
+  }
+  if (err instanceof HttpErrorResponse && err.status === 413) {
+    return true;
+  }
+  const message = (body?.message ?? '').toLowerCase();
+  return (
+    message.includes('too large') ||
+    message.includes('maximum upload') ||
+    message.includes('size limit')
+  );
 }

@@ -1,0 +1,24 @@
+<div class="dialog-backdrop" (click)="onBackdrop($event)">
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="picker-title" (click)="$event.stopPropagation()">
+    <header class="dialog-header">
+      <h2 id="picker-title">Añadir a una lista</h2>
+      <p class="dialog-subtitle">{{ titleOf(track()) }}</p>
+    </header>
+    <div class="dialog-body">
+      @if (playlists().length === 0) {
+        <p class="hint">Todavía no hay listas. Crea una en la barra de listas.</p>
+      } @else {
+        <ul class="choices">
+          @for (playlist of playlists(); track playlist.id) {
+            <li>
+              <button type="button" (click)="picked.emit(playlist)">{{ playlist.name }}</button>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+    <footer class="dialog-actions">
+      <button type="button" class="btn btn-ghost" (click)="close()">Cerrar</button>
+    </footer>
+  </div>
+</div>

@@ -1,14 +1,14 @@
-import { Injectable } from '@angular/core';
-import { environment } from '../../../../environments/environment';
+import { inject, Injectable } from '@angular/core';
+import { RuntimeConfigService } from '../../../core/runtime-config.service';
 import { API_PATHS } from '../models/track';
 
 @Injectable({
   providedIn: 'root',
 })
 export class PlaybackResolver {
-  private readonly remoteApiUrl = environment.apiUrl;
+  private config = inject(RuntimeConfigService);
 
   resolvePlaybackUrl(trackId: number): string {
-    return `${this.remoteApiUrl}${API_PATHS.audios}/${trackId}`;
+    return this.config.url(`${API_PATHS.audios}/${trackId}`);
   }
 }

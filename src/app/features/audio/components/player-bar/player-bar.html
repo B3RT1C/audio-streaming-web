@@ -1,0 +1,75 @@
+<div class="dock-inner">
+  <div class="now">
+    <p class="title">{{ player.current() ? titleOf(player.current()) : 'Nada en reproducción' }}</p>
+    <p class="sub">{{ player.current() ? (subtitleOf(player.current()) || 'Biblioteca') : 'Elige una canción' }}</p>
+  </div>
+
+  <label class="seek">
+    <span class="time">{{ clock(player.currentTime()) }}</span>
+    <input
+      type="range"
+      class="progress"
+      min="0"
+      [max]="player.duration() || 0"
+      [value]="player.currentTime()"
+      [disabled]="!player.current()"
+      aria-label="Posición de la canción"
+      (input)="onSeek($event)"
+    >
+    <span class="time">{{ clock(player.duration()) }}</span>
+  </label>
+
+  <div class="transport">
+    <button
+      type="button"
+      class="ctrl"
+      [class.on]="player.shuffle()"
+      [attr.aria-pressed]="player.shuffle()"
+      aria-label="Aleatorio"
+      (click)="player.toggleShuffle()"
+    >Aleatorio</button>
+    <button type="button" class="ctrl" aria-label="Anterior" (click)="player.previous()">Anterior</button>
+    <button type="button" class="ctrl play" [attr.aria-label]="player.playing() ? 'Pausar' : 'Reproducir'" (click)="player.toggle()">
+      {{ player.playing() ? 'Pausa' : 'Play' }}
+    </button>
+    <button type="button" class="ctrl" aria-label="Siguiente" (click)="player.next()">Siguiente</button>
+    <button
+      type="button"
+      class="ctrl"
+      [class.on]="player.repeat() !== 'off'"
+      [attr.aria-pressed]="player.repeat() !== 'off'"
+      [attr.aria-label]="player.repeatLabel()"
+      (click)="player.cycleRepeat()"
+    >{{ player.repeat() === 'one' ? 'Una' : 'Repetir' }}</button>
+  </div>
+
+  <div class="extra">
+    <button type="button" class="linkish" (click)="player.stop()" [disabled]="!player.current()">Detener</button>
+    <button type="button" class="linkish" [attr.aria-expanded]="queueOpen()" (click)="toggleQueue()">
+      Cola ({{ player.queue().length }})
+    </button>
+  </div>
+
+  @if (player.error()) {
+    <p class="dock-error">{{ player.error() }}</p>
+  }
+
+  @if (queueOpen()) {
+    <ol class="queue">
+      @if (player.playOrder().length === 0) {
+        <li class="empty">La cola está vacía.</li>
+      } @else {
+        @for (item of player.playOrder(); track item.track.id) {
+          <li>
+            <button type="button" [class.current]="item.current" (click)="player.jumpTo(item.index)">
+              <span>{{ titleOf(item.track) }}</span>
+              <span class="q-sub">{{ subtitleOf(item.track) }}</span>
+            </button>
+          </li>
+        }
+      }
+    </ol>
+  }
+</div>
+
+<audio #audio playsinline preload="none"></audio>

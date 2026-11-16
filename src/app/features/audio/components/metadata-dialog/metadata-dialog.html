@@ -1,0 +1,35 @@
+<div class="dialog-backdrop" (click)="onBackdrop($event)">
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="metadata-title" (click)="$event.stopPropagation()">
+    <header class="dialog-header">
+      <h2 id="metadata-title">Editar canción</h2>
+      <p class="dialog-subtitle">Título, artista, álbum y número de pista.</p>
+    </header>
+    <div class="dialog-body">
+      <label class="field">
+        <span class="field-label">Título</span>
+        <input class="field-input" type="text" [value]="title()" (input)="onTitle($event)" autocomplete="off">
+      </label>
+      <label class="field">
+        <span class="field-label">Artista</span>
+        <input class="field-input" type="text" [value]="artist()" (input)="onArtist($event)" autocomplete="off">
+      </label>
+      <label class="field">
+        <span class="field-label">Álbum</span>
+        <input class="field-input" type="text" [value]="album()" (input)="onAlbum($event)" autocomplete="off">
+      </label>
+      <label class="field">
+        <span class="field-label">Nº de pista</span>
+        <input class="field-input" type="text" inputmode="numeric" [value]="trackNumber()" (input)="onTrackNumber($event)" autocomplete="off">
+      </label>
+      @if (formError()) {
+        <p class="message message-error">{{ formError() }}</p>
+      }
+    </div>
+    <footer class="dialog-actions">
+      <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="cancel()">Cancelar</button>
+      <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="save()">
+        {{ busy() ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </footer>
+  </div>
+</div>

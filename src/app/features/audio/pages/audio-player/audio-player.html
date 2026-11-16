@@ -1,106 +1,189 @@
-<div class="app-shell">
-  <header class="app-header">
-    <h1>Music Streaming</h1>
-    <p class="subtitle">Tu biblioteca personal de audio</p>
+<div class="shell">
+  <header class="top">
+    <div>
+      <p class="eyebrow">Music Streaming</p>
+      <h1>Música</h1>
+    </div>
   </header>
 
-  <section class="panel now-playing">
-    <h2>Reproduciendo</h2>
-    <p class="track-name">{{ currentTrack()?.name ?? '—' }}</p>
+  @if (actionError()) {
+    <p class="banner banner-error" role="alert">{{ actionError() }}</p>
+  }
+  @if (uploadMessage()) {
+    <p class="banner banner-ok">{{ uploadMessage() }}</p>
+  }
 
-    <audio
-      #audioPlayer
-      class="audio-element"
-      (ended)="nextAudio()"
-      (timeupdate)="onTimeUpdate()"
-      (loadedmetadata)="onLoadedMetadata()"
-      (play)="onPlay()"
-      (pause)="onPause()"
-      (error)="onAudioError()"
-    >
-      <source [src]="audioUrl">
-    </audio>
-
-    <div class="progress-row">
-      <span class="time">{{ formatTime(currentTime()) }}</span>
-      <input
-        type="range"
-        class="progress-bar"
-        [min]="0"
-        [max]="duration() || 0"
-        [value]="currentTime()"
-        [disabled]="!currentTrack()"
-        (input)="onSeek($event)"
-      >
-      <span class="time">{{ formatTime(duration()) }}</span>
-    </div>
-
-    <div class="transport">
-      <button type="button" class="control-btn" aria-label="Anterior" (click)="previousAudio()">⏮</button>
-      <button type="button" class="control-btn control-btn-primary" aria-label="Reproducir" (click)="togglePlayPause()">
-        {{ isPlaying() ? '⏸' : '▶' }}
+  <div class="workspace">
+    <aside class="lists" aria-label="Listas">
+      <button type="button" class="chip" [class.active]="!activePlaylist()" (click)="showLibrary()">
+        Biblioteca
       </button>
-      <button type="button" class="control-btn" aria-label="Detener" (click)="stop()">⏹</button>
-      <button type="button" class="control-btn" aria-label="Siguiente" (click)="nextAudio()">⏭</button>
-    </div>
-  </section>
+      @for (playlist of playlists(); track playlist.id) {
+        <button
+          type="button"
+          class="chip"
+          [class.active]="activePlaylist()?.id === playlist.id"
+          (click)="openPlaylist(playlist.id)"
+        >
+          {{ playlist.name }}
+        </button>
+      }
+      <form class="new-playlist" (submit)="createPlaylist($event)">
+        <label>
+          <span class="visually-hidden">Nombre de la lista</span>
+          <input
+            type="text"
+            [value]="newPlaylistName()"
+            maxlength="80"
+            placeholder="Nueva lista"
+            (input)="onNewPlaylistName($event)"
+          >
+        </label>
+        <button type="submit" class="btn btn-primary" [disabled]="creatingPlaylist() || !newPlaylistName().trim()">
+          Crear
+        </button>
+      </form>
+      @if (playlistError()) {
+        <p class="message message-error">{{ playlistError() }}</p>
+      }
+    </aside>
 
-  <section class="panel library">
-    <div class="section-header">
-      <h2>Biblioteca</h2>
-      <span class="badge">{{ trackCount() }} canciones</span>
-    </div>
+    <main class="stage">
+      @if (activePlaylist(); as playlist) {
+        <section class="panel">
+          <div class="section-head">
+            @if (renaming()) {
+              <form class="rename" (submit)="saveRename($event)">
+                <label class="visually-hidden" for="rename-playlist">Nuevo nombre</label>
+                <input id="rename-playlist" type="text" [value]="renameValue()" maxlength="80" (input)="onRenameInput($event)">
+                <button type="submit" class="btn btn-primary">Guardar</button>
+                <button type="button" class="btn btn-ghost" (click)="renaming.set(false)">Cancelar</button>
+              </form>
+            } @else {
+              <div>
+                <h2>{{ playlist.name }}</h2>
+                <p class="count">{{ trackCountLabel() }}</p>
+              </div>
+              <div class="head-actions">
+                <button type="button" class="btn btn-primary" (click)="playActivePlaylist()">Reproducir</button>
+                <button type="button" class="btn btn-ghost" (click)="startRename()">Renombrar</button>
+                <button type="button" class="btn btn-danger" (click)="deletePlaylist()">Borrar lista</button>
+              </div>
+            }
+          </div>
+          <app-audio-list
+            [entries]="playlistEntries()"
+            [selectedId]="player.current()?.id ?? -1"
+            [loading]="false"
+            emptyMessage="Esta lista está vacía. Añade canciones desde la biblioteca."
+            mode="playlist"
+            (selected)="playVisible($event)"
+            (edit)="editing.set($event)"
+            (remove)="removeFromPlaylist($event)"
+            (move)="moveEntry($event)"
+          ></app-audio-list>
+        </section>
+      } @else {
+        <section class="panel">
+          <div class="section-head">
+            <div>
+              <h2>Biblioteca</h2>
+              <p class="count">{{ trackCountLabel() }}</p>
+            </div>
+          </div>
+          <label class="search">
+            <span class="visually-hidden">Buscar</span>
+            <input
+              type="search"
+              [value]="query()"
+              placeholder="Buscar título, artista, álbum o archivo"
+              (input)="onSearchInput($event)"
+            >
+          </label>
+          @if (searching() && !firstLoad()) {
+            <p class="searching">Buscando…</p>
+          }
+          <app-audio-list
+            [entries]="libraryEntries()"
+            [selectedId]="player.current()?.id ?? -1"
+            [loading]="firstLoad()"
+            [errorMessage]="libraryError()"
+            mode="library"
+            (selected)="playVisible($event)"
+            (edit)="editing.set($event)"
+            (add)="addingTrack.set($event)"
+            (delete)="deleteTrack($event)"
+          ></app-audio-list>
+        </section>
+      }
 
-    @if (errorMessage()) {
-      <p class="message message-error">{{ errorMessage() }}</p>
-    }
-
-    <app-audio-list
-      [loadedMusicDatas]="loadedMusicDatas()"
-      [selectedId]="playingId()"
-      [loading]="loading()"
-      [errorMessage]="errorMessage()"
-      (selected)="loadAudio($event.id)"
-      (delete)="deleteAudio($event)"
-    ></app-audio-list>
-  </section>
-
-  <section class="panel upload-panel">
-    <h2>Añadir canción</h2>
-
-    <div
-      class="dropzone"
-      [class.dropzone-active]="isDragging()"
-      (dragover)="onDragOver($event)"
-      (dragleave)="onDragLeave($event)"
-      (drop)="onDrop($event)"
-    >
-      <p>Arrastra archivos MP3 aquí</p>
-      <p class="dropzone-hint">o</p>
-      <button type="button" class="btn btn-primary" [disabled]="uploading()" (click)="openFilePicker()">
-        Seleccionar archivos
-      </button>
-      <input
-        #fileInput
-        type="file"
-        class="file-input-hidden"
-        accept="audio/mpeg,audio/mp3"
-        multiple
-        (change)="onFileSelected($event)"
-      >
-    </div>
-
-    @if (uploadMessage()) {
-      <p class="message message-success">{{ uploadMessage() }}</p>
-    }
-  </section>
+      <section class="panel upload-panel">
+        <h2>Subir música</h2>
+        <div
+          class="dropzone"
+          [class.dropzone-active]="isDragging()"
+          (dragover)="onDragOver($event)"
+          (dragleave)="onDragLeave($event)"
+          (drop)="onDrop($event)"
+        >
+          <p>Arrastra audio aquí</p>
+          <button type="button" class="btn btn-primary" [disabled]="uploading()" (click)="openFilePicker()">
+            Elegir archivos
+          </button>
+          <p class="hint">MP3, M4A, AAC, WAV, FLAC, OGG u Opus. Máximo 500 MB.</p>
+          <input
+            #fileInput
+            type="file"
+            class="file-input-hidden"
+            [accept]="accept"
+            multiple
+            (change)="onFileSelected($event)"
+          >
+        </div>
+        @if (uploading()) {
+          <div
+            class="upload-bar"
+            role="progressbar"
+            [attr.aria-valuenow]="uploadPercent() ?? 0"
+            aria-valuemin="0"
+            aria-valuemax="100"
+          >
+            <span [style.width.%]="uploadPercent() ?? 0"></span>
+          </div>
+          <p class="hint">{{ uploadStatus() }}</p>
+        }
+      </section>
+    </main>
+  </div>
 </div>
+
+<app-player-bar></app-player-bar>
 
 @if (uploadDrafts(); as drafts) {
   <app-upload-dialog
     [drafts]="drafts"
     [busy]="uploading()"
+    [progress]="uploadPercent()"
+    [status]="uploadStatus()"
     (confirmed)="confirmUploadDialog($event)"
     (cancelled)="cancelUploadDialog()"
   ></app-upload-dialog>
+}
+
+@if (editing(); as track) {
+  <app-metadata-dialog
+    [track]="track"
+    [busy]="savingMeta()"
+    (saved)="saveMetadata($event)"
+    (cancelled)="editing.set(null)"
+  ></app-metadata-dialog>
+}
+
+@if (addingTrack(); as track) {
+  <app-playlist-picker
+    [track]="track"
+    [playlists]="playlists()"
+    (picked)="addTrackToPlaylist($event)"
+    (closed)="addingTrack.set(null)"
+  ></app-playlist-picker>
 }
