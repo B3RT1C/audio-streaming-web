@@ -64,13 +64,13 @@ export class AudioPlayer implements OnInit {
 
   readonly playlistEntries = computed<TrackRow[]>(() => {
     const playlist = this.activePlaylist();
-    if (!playlist) {
+    if (!playlist?.items) {
       return [];
     }
     const byId = new Map(this.catalog().map((track) => [track.id, track]));
     return playlist.items.map((item) => ({
       audioId: item.audioId,
-      track: byId.get(item.audioId) ?? null,
+      track: item.audio ?? byId.get(item.audioId) ?? null,
     }));
   });
 
@@ -79,7 +79,8 @@ export class AudioPlayer implements OnInit {
   );
 
   readonly trackCountLabel = computed(() => {
-    const count = this.visibleEntries().length;
+    const playlist = this.activePlaylist();
+    const count = playlist ? (playlist.items?.length ?? playlist.itemCount) : this.libraryEntries().length;
     return count === 1 ? '1 canción' : `${count} canciones`;
   });
 
@@ -126,6 +127,11 @@ export class AudioPlayer implements OnInit {
             return;
           }
           this.activePlaylist.set(playlist);
+          this.playlists.update((lists) =>
+            lists.map((item) =>
+              item.id === playlist.id ? { ...item, name: playlist.name, itemCount: playlist.itemCount } : item,
+            ),
+          );
           this.playlistError.set('');
           this.renaming.set(false);
         },
@@ -243,21 +249,26 @@ export class AudioPlayer implements OnInit {
     if (!playlist) {
       return;
     }
-    const ids = playlist.items.map((item) => item.audioId);
-    const index = ids.indexOf(change.audioId);
+    const items = playlist.items ?? [];
+    const index = items.findIndex((item) => item.audioId === change.audioId);
     const target = index + change.direction;
-    if (index < 0 || target < 0 || target >= ids.length) {
+    if (index < 0 || target < 0 || target >= items.length) {
       return;
     }
-    const next = ids.slice();
+    const next = items.slice();
     const [moved] = next.splice(index, 1);
     next.splice(target, 0, moved);
+    const ordered = next.map((item, position) => ({ ...item, position: position + 1 }));
     this.activePlaylist.set({
       ...playlist,
-      items: next.map((audioId, position) => ({ audioId, position })),
+      itemCount: ordered.length,
+      items: ordered,
     });
     this.playlistService
-      .reorder(playlist.id, next)
+      .reorder(
+        playlist.id,
+        ordered.map((item) => item.audioId),
+      )
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (updated) => {
@@ -448,6 +459,7 @@ export class AudioPlayer implements OnInit {
       this.actionError.set(firstFailure ?? `Fallaron ${failed} subidas.`);
     }
     if (completed > 0) {
+      // 201 is only { message } and has no id, so the new track comes from a fresh list.
       this.refreshLibrary();
     }
   }

@@ -37,6 +37,10 @@ export class AudioService {
       .pipe(map((body) => normalizeTrack(body)));
   }
 
+  /**
+   * POST /audios answers 201 { message } and does not include the new id.
+   * After `done`, reload the catalog with `list()`.
+   */
   upload(file: File, name?: string): Observable<UploadProgressEvent> {
     const formData = new FormData();
     formData.append('file', file);

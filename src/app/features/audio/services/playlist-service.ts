@@ -3,7 +3,13 @@ import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { RuntimeConfigService } from '../../../core/runtime-config.service';
-import { normalizePlaylist, normalizePlaylistList, Playlist } from '../models/playlist';
+import {
+  normalizePlaylist,
+  normalizePlaylistItem,
+  normalizePlaylistList,
+  Playlist,
+  PlaylistItem,
+} from '../models/playlist';
 import { API_PATHS } from '../models/track';
 
 @Injectable({
@@ -37,20 +43,21 @@ export class PlaylistService {
     return this.http.delete<void>(this.one(id));
   }
 
-  addItem(id: number, audioId: number): Observable<Playlist | null> {
+  /** Responds with the item ({ position, audioId, audio }), not the playlist. */
+  addItem(id: number, audioId: number): Observable<PlaylistItem | null> {
     return this.http
       .post<unknown>(`${this.one(id)}/items`, { audioId })
-      .pipe(map((body) => normalizePlaylist(body)));
+      .pipe(map((body) => normalizePlaylistItem(body)));
   }
 
   removeItem(id: number, audioId: number): Observable<void> {
     return this.http.delete<void>(`${this.one(id)}/items/${audioId}`);
   }
 
-  /** PUT body is the ordered list of audio ids. */
+  /** Preferred body is { audioIds }. The server also accepts a raw array. */
   reorder(id: number, audioIds: number[]): Observable<Playlist | null> {
     return this.http
-      .put<unknown>(`${this.one(id)}/items`, audioIds)
+      .put<unknown>(`${this.one(id)}/items`, { audioIds })
       .pipe(map((body) => normalizePlaylist(body)));
   }
 

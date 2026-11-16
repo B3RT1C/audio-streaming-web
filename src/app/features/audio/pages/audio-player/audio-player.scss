@@ -58,6 +58,9 @@
 }
 
 .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
@@ -71,6 +74,11 @@
     border-color: transparent;
     color: var(--accent-hover);
   }
+}
+
+.chip-count {
+  font-size: 0.75rem;
+  opacity: 0.72;
 }
 
 .new-playlist {

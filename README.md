@@ -66,28 +66,28 @@ La página y el API siguen yendo en orígenes distintos (por ejemplo la web en e
 
 ## Contrato que consume esta versión
 
-El `main` del backend, en el momento de este cliente, sigue en el contrato 0.1.0. Esta web ya llama a la 0.2.0. Si un nombre no coincide, el ajuste está en un solo sitio:
+Alineado con el backend 0.2.0 (`docs/openapi.yaml` de la rama `cursor/backend-0-2-0-7e11`). Si un nombre cambia, el ajuste está en un solo sitio:
 
 - Canciones: `src/app/features/audio/models/track.ts` (`normalizeTrack`)
 - Listas: `src/app/features/audio/models/playlist.ts` (`normalizePlaylist`)
 - Cuerpos de las peticiones: `audio-service.ts` y `playlist-service.ts`
-
-Se asume:
+- Textos de error: `src/app/features/audio/utils/api-error.ts`
 
 | Petición | Cuerpo / respuesta |
 |----------|--------------------|
-| `GET /audios` y `GET /audios?q=` | Array como en 0.1, más `title`, `artist`, `album`, `durationSeconds`, `trackNumber` |
-| `PATCH /audios/{id}` | `{ title, artist, album, trackNumber }` (`trackNumber` puede ser `null`) |
-| `GET /audios/{id}` y `POST /audios` | Igual que en 0.1 (`file` y `name` opcional) |
-| `GET /playlists` | Array de `{ id, name, items? }` |
-| `POST /playlists` | `{ name }` |
-| `GET /playlists/{id}` | `{ id, name, items }` |
-| `PATCH /playlists/{id}` | `{ name }` |
-| `POST /playlists/{id}/items` | `{ audioId }` |
-| `DELETE /playlists/{id}/items/{audioId}` | sin cuerpo |
-| `PUT /playlists/{id}/items` | array ordenado de ids, por ejemplo `[3, 1, 8]` |
+| `GET /audios` y `GET /audios?q=` | Array de canciones, con `title`, `artist`, `album`, `durationSeconds`, `trackNumber` |
+| `PATCH /audios/{id}` | `{ title, artist, album, trackNumber }` (`trackNumber` puede ser `null`). Responde la canción |
+| `GET /audios/{id}` | Stream. Un rango fuera del fichero responde 416 `RANGE_NOT_SATISFIABLE` |
+| `POST /audios` | `file` y `name` opcional. Responde **201** `{ "message": "File received" }` **sin id**. Tras subir, la web vuelve a pedir el listado |
+| `GET /playlists` | Resúmenes `{ id, name, createdAt, updatedAt, itemCount }` **sin** `items` |
+| `POST /playlists` | `{ name }`. 201 con `items: []` |
+| `GET /playlists/{id}` | Detalle. `items` es `[{ position, audioId, audio }]`. `position` empieza en 1 y puede tener huecos |
+| `PATCH /playlists/{id}` | `{ name }`. Responde la playlist con sus items |
+| `POST /playlists/{id}/items` | `{ audioId }`. Responde el ítem, no la playlist. La web recarga el detalle |
+| `DELETE /playlists/{id}/items/{audioId}` | 204 |
+| `PUT /playlists/{id}/items` | `{ "audioIds": [3, 1, 8] }` con exactamente las canciones actuales, cada una una vez |
 
-`items` puede ser `[{ audioId, position? }]` o una lista de números. Los ids son numéricos.
+Los errores son `{ "message", "code" }`. Esta web traduce `FILE_TOO_LARGE` (413), `INVALID_FILE`, `INVALID_ORDER` (400) y `RANGE_NOT_SATISFIABLE` (416). La lista de reproducción se ordena por `position`, así que un hueco no cambia el orden ni se confunde con el número de canciones.
 
 ## PWA
 

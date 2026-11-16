@@ -1,45 +1,37 @@
 import { asNumber, asString, isRecord } from '../utils/json';
+import { normalizeTrack, Track } from './track';
 
 /**
- * Assumed 0.2.0 playlist wire format. Change this file if the backend shape differs.
+ * Playlist wire format from audio-streaming-backend 0.2.0.
  *
- * - GET /playlists → PlaylistJson[] (or { playlists | content: PlaylistJson[] })
- * - GET/POST/PATCH playlist → PlaylistJson
- * - items → { audioId, position? }[] or a bare number[] of audio ids
- * - POST /playlists body is { name }
- * - PATCH /playlists/{id} body is { name }
- * - POST /playlists/{id}/items body is { audioId }
- * - PUT /playlists/{id}/items body is the ordered audio id list (number[])
+ * GET /playlists returns summaries: { id, name, createdAt, updatedAt, itemCount } and omits items.
+ * GET/POST/PATCH /playlists/{id} and PUT /playlists/{id}/items return the playlist with items.
+ * Each item is { position, audioId, audio }. position is 1-based and may contain gaps.
+ * POST /playlists/{id}/items returns that item, not the whole playlist.
  */
-export interface PlaylistItemJson {
-  audioId?: number;
-  position?: number;
-  audio?: { id?: number };
-  track?: { id?: number };
-}
-
-export interface PlaylistJson {
-  id?: number;
-  name?: string;
-  items?: Array<PlaylistItemJson | number>;
-  tracks?: Array<PlaylistItemJson | number>;
-  audios?: Array<PlaylistItemJson | number>;
-}
-
 export interface PlaylistItem {
-  audioId: number;
   position: number;
+  audioId: number;
+  audio: Track | null;
 }
 
 export interface Playlist {
   id: number;
   name: string;
-  items: PlaylistItem[];
+  /** Track count. Summaries only have this; a loaded playlist also has items. */
+  itemCount: number;
+  /**
+   * null when the payload omitted items (the list endpoint).
+   * [] means the playlist was loaded and is empty.
+   */
+  items: PlaylistItem[] | null;
 }
 
 export function normalizePlaylistList(raw: unknown): Playlist[] {
-  const list = unwrapList(raw);
-  return list.map(normalizePlaylist).filter((playlist): playlist is Playlist => playlist != null);
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+  return raw.map(normalizePlaylist).filter((playlist): playlist is Playlist => playlist != null);
 }
 
 export function normalizePlaylist(raw: unknown): Playlist | null {
@@ -51,61 +43,42 @@ export function normalizePlaylist(raw: unknown): Playlist | null {
     return null;
   }
   const name = asString(raw['name'])?.trim() || 'Sin nombre';
-  const items = normalizeItems(raw['items'] ?? raw['tracks'] ?? raw['audios']);
-  return { id, name, items };
+  const items = normalizeItems(raw['items']);
+  const reported = asNumber(raw['itemCount']);
+  const itemCount = items != null ? items.length : (reported ?? 0);
+  return { id, name, itemCount, items };
 }
 
-function unwrapList(raw: unknown): unknown[] {
-  if (Array.isArray(raw)) {
-    return raw;
+/** Body of POST /playlists/{id}/items: { position, audioId, audio }. */
+export function normalizePlaylistItem(raw: unknown, index = 0): PlaylistItem | null {
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    return { position: index + 1, audioId: raw, audio: null };
   }
   if (!isRecord(raw)) {
-    return [];
+    return null;
   }
-  if (Array.isArray(raw['playlists'])) {
-    return raw['playlists'];
+  const nested = isRecord(raw['audio']) ? normalizeTrack(raw['audio']) : null;
+  const audioId = asNumber(raw['audioId']) ?? nested?.id ?? null;
+  if (audioId == null) {
+    return null;
   }
-  if (Array.isArray(raw['content'])) {
-    return raw['content'];
-  }
-  return [];
+  const position = asNumber(raw['position']) ?? index + 1;
+  return { position, audioId, audio: nested };
 }
 
-function normalizeItems(raw: unknown): PlaylistItem[] {
+function normalizeItems(raw: unknown): PlaylistItem[] | null {
+  if (raw == null) {
+    return null;
+  }
   if (!Array.isArray(raw)) {
-    return [];
+    return null;
   }
   const items: PlaylistItem[] = [];
   raw.forEach((entry, index) => {
-    const audioId = itemAudioId(entry);
-    if (audioId == null) {
-      return;
+    const item = normalizePlaylistItem(entry, index);
+    if (item) {
+      items.push(item);
     }
-    const position = isRecord(entry) ? (asNumber(entry['position']) ?? index) : index;
-    items.push({ audioId, position });
   });
-  return items.sort((a, b) => a.position - b.position || a.audioId - b.audioId);
-}
-
-function itemAudioId(entry: unknown): number | null {
-  if (typeof entry === 'number' && Number.isFinite(entry)) {
-    return entry;
-  }
-  if (!isRecord(entry)) {
-    return null;
-  }
-  const direct = asNumber(entry['audioId']);
-  if (direct != null) {
-    return direct;
-  }
-  if (isRecord(entry['audio'])) {
-    const nested = asNumber(entry['audio']['id']);
-    if (nested != null) {
-      return nested;
-    }
-  }
-  if (isRecord(entry['track'])) {
-    return asNumber(entry['track']['id']);
-  }
-  return null;
+  return items.sort((left, right) => left.position - right.position || left.audioId - right.audioId);
 }

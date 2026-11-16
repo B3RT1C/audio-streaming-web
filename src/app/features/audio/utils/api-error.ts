@@ -6,6 +6,9 @@ const CODE_MESSAGES: Record<string, string> = {
   INVALID_NAME: 'El nombre no es válido.',
   INVALID_FILE: 'El archivo no es válido.',
   FILE_TOO_LARGE: 'El archivo es demasiado grande (máximo 500 MB).',
+  INVALID_BODY: 'Los datos enviados no son válidos.',
+  INVALID_ORDER: 'El orden de la lista no coincide con sus canciones.',
+  RANGE_NOT_SATISFIABLE: 'No se puede reproducir ese punto del audio.',
   NOT_FOUND: 'No se encontró la canción.',
   STORAGE_ERROR: 'Error al guardar el archivo.',
   INTERNAL: 'Algo salió mal. Inténtalo de nuevo.',
@@ -66,6 +69,9 @@ export function toUserMessage(operation: ApiOperation, err: unknown): string {
   }
 
   if (err instanceof HttpErrorResponse) {
+    if (err.status === 416) {
+      return CODE_MESSAGES['RANGE_NOT_SATISFIABLE'];
+    }
     if (err.status === 404) {
       return operation === 'playlist' ? 'No se encontró la lista.' : CODE_MESSAGES['NOT_FOUND'];
     }

@@ -25,7 +25,8 @@
           [class.active]="activePlaylist()?.id === playlist.id"
           (click)="openPlaylist(playlist.id)"
         >
-          {{ playlist.name }}
+          <span class="chip-name">{{ playlist.name }}</span>
+          <span class="chip-count">{{ playlist.itemCount }}</span>
         </button>
       }
       <form class="new-playlist" (submit)="createPlaylist($event)">

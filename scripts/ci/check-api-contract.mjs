@@ -11,6 +11,9 @@ const trackPath = path.join(root, 'src/app/features/audio/models/track.ts');
 const audioServicePath = path.join(root, 'src/app/features/audio/services/audio-service.ts');
 const playlistServicePath = path.join(root, 'src/app/features/audio/services/playlist-service.ts');
 const playbackPath = path.join(root, 'src/app/features/audio/services/playback-resolver.ts');
+const playlistModelPath = path.join(root, 'src/app/features/audio/models/playlist.ts');
+const apiErrorPath = path.join(root, 'src/app/features/audio/utils/api-error.ts');
+const playerPagePath = path.join(root, 'src/app/features/audio/pages/audio-player/audio-player.ts');
 const prodEnvPath = path.join(root, 'src/environments/environment.prod.ts');
 const configPath = path.join(root, 'public/config.json');
 
@@ -50,4 +53,26 @@ if (!Object.prototype.hasOwnProperty.call(config, 'apiUrl')) {
   fail('public/config.json must expose apiUrl');
 }
 
-console.log('CONTRACT OK: web API paths match the 0.2 client contract (/audios, /playlists)');
+const playlistService = fs.readFileSync(playlistServicePath, 'utf8');
+if (!playlistService.includes('audioIds')) {
+  fail('reorder must send { audioIds }');
+}
+if (!playlistService.includes('normalizePlaylistItem')) {
+  fail('addItem must read the item payload, not a playlist');
+}
+
+const playlistModel = fs.readFileSync(playlistModelPath, 'utf8');
+if (!playlistModel.includes('itemCount')) fail('playlist model must keep itemCount from list summaries');
+if (!playlistModel.includes('position')) fail('playlist items must keep position, which can have gaps');
+
+const errors = fs.readFileSync(apiErrorPath, 'utf8');
+for (const code of ['FILE_TOO_LARGE', 'INVALID_ORDER', 'RANGE_NOT_SATISFIABLE']) {
+  if (!errors.includes(code)) fail(`missing error code ${code}`);
+}
+
+const playerPage = fs.readFileSync(playerPagePath, 'utf8');
+if (!playerPage.includes('refreshLibrary()')) {
+  fail('the player must reload the library after upload, because POST /audios returns no id');
+}
+
+console.log('CONTRACT OK: web client matches backend 0.2.0 (/audios, /playlists, itemCount, audioIds)');

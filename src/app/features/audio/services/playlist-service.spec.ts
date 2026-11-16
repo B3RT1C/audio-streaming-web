@@ -21,8 +21,14 @@ describe('PlaylistService', () => {
   afterEach(() => http.verify());
 
   it('lists, creates, renames and deletes playlists', () => {
-    service.list().subscribe();
-    http.expectOne(config.url('/playlists')).flush([{ id: 1, name: 'Noche', items: [] }]);
+    let summaries: { itemCount: number; items: unknown }[] = [];
+    service.list().subscribe((playlists) => {
+      summaries = playlists;
+    });
+    http.expectOne(config.url('/playlists')).flush([
+      { id: 1, name: 'Noche', itemCount: 3, createdAt: '2026-11-16T00:00:00Z', updatedAt: '2026-11-16T00:00:00Z' },
+    ]);
+    expect(summaries).toEqual([{ id: 1, name: 'Noche', itemCount: 3, items: null }]);
 
     service.create('Gym').subscribe();
     const created = http.expectOne(config.url('/playlists'));
@@ -43,17 +49,34 @@ describe('PlaylistService', () => {
   });
 
   it('adds, removes and reorders items', () => {
-    service.addItem(3, 11).subscribe();
+    let addedId = 0;
+    service.addItem(3, 11).subscribe((item) => {
+      addedId = item?.audioId ?? 0;
+    });
     const added = http.expectOne(config.url('/playlists/3/items'));
     expect(added.request.method).toBe('POST');
     expect(added.request.body).toEqual({ audioId: 11 });
-    added.flush({ id: 3, name: 'Noche', items: [{ audioId: 11 }] });
+    added.flush({
+      position: 2,
+      audioId: 11,
+      audio: { id: 11, name: 'a.mp3', title: 'Tema', extension: 'mp3', path: 'p' },
+    });
+    expect(addedId).toBe(11);
 
     service.reorder(3, [11, 4, 8]).subscribe();
     const order = http.expectOne(config.url('/playlists/3/items'));
     expect(order.request.method).toBe('PUT');
-    expect(order.request.body).toEqual([11, 4, 8]);
-    order.flush(null);
+    expect(order.request.body).toEqual({ audioIds: [11, 4, 8] });
+    order.flush({
+      id: 3,
+      name: 'Noche',
+      itemCount: 3,
+      items: [
+        { position: 1, audioId: 11, audio: { id: 11, name: 'a.mp3', title: 'Tema', extension: 'mp3' } },
+        { position: 2, audioId: 4, audio: { id: 4, name: 'b.mp3', title: 'Otra', extension: 'mp3' } },
+        { position: 3, audioId: 8, audio: { id: 8, name: 'c.mp3', title: 'Tres', extension: 'mp3' } },
+      ],
+    });
 
     service.removeItem(3, 4).subscribe();
     const removed = http.expectOne(config.url('/playlists/3/items/4'));
