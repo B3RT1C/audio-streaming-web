@@ -49,10 +49,12 @@ describe('AudioPlayer', () => {
     expect(text).toContain('Luna');
     expect(text).toContain('Azul');
     expect(text).toContain('1:35');
+    fixture.componentInstance.showSection('search');
+    fixture.detectChanges();
     const search = fixture.nativeElement.querySelector('input[type="search"]') as HTMLInputElement;
     expect(search.placeholder).toContain('título');
     expect(search.placeholder).toContain('artista');
-    const chip = fixture.nativeElement.querySelectorAll('.chip')[1] as HTMLElement;
+    const chip = fixture.nativeElement.querySelector('.playlist-chip') as HTMLElement;
     expect(chip.textContent).toContain('Viaje');
     expect(chip.textContent).toContain('9');
   });
@@ -102,7 +104,7 @@ describe('AudioPlayer', () => {
     expect(text.indexOf('Amanecer')).toBeGreaterThan(-1);
     expect(text.indexOf('Amanecer')).toBeLessThan(text.indexOf('Noche'));
     expect(text).toContain('2 canciones');
-    const chip = fixture.nativeElement.querySelectorAll('.chip')[1] as HTMLElement;
+    const chip = fixture.nativeElement.querySelector('.playlist-chip') as HTMLElement;
     expect(chip.textContent).toContain('2');
     expect(chip.textContent).not.toContain('9');
   });

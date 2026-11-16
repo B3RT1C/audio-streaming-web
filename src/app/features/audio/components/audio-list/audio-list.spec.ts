@@ -37,6 +37,9 @@ describe('AudioList', () => {
   });
 
   it('asks before deleting a track from the library', () => {
+    const more = fixture.nativeElement.querySelector('button[aria-label="Más opciones"]') as HTMLButtonElement;
+    more.click();
+    fixture.detectChanges();
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const button = [...fixture.nativeElement.querySelectorAll('button')].find((node) =>
       (node as HTMLButtonElement).textContent?.includes('Borrar'),

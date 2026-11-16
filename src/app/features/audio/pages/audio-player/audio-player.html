@@ -1,164 +1,223 @@
-<div class="shell">
-  <header class="top">
-    <div>
-      <p class="eyebrow">Music Streaming</p>
-      <h1>Música</h1>
-    </div>
-  </header>
-
-  @if (actionError()) {
-    <p class="banner banner-error" role="alert">{{ actionError() }}</p>
-  }
-  @if (uploadMessage()) {
-    <p class="banner banner-ok">{{ uploadMessage() }}</p>
-  }
-
-  <div class="workspace">
-    <aside class="lists" aria-label="Listas">
-      <button type="button" class="chip" [class.active]="!activePlaylist()" (click)="showLibrary()">
-        Biblioteca
-      </button>
+<div
+  class="shell"
+  (dragover)="onDragOver($event)"
+  (dragleave)="onDragLeave($event)"
+  (drop)="onDrop($event)"
+>
+  <aside class="sidebar">
+    <p class="brand">Música</p>
+    <nav class="side-nav" aria-label="Secciones">
+      <button type="button" [class.active]="section() === 'home' && !activePlaylist()" (click)="showLibrary()">Inicio</button>
+      <button type="button" [class.active]="section() === 'search'" (click)="showSection('search')">Buscar</button>
+      <button type="button" [class.active]="section() === 'playlists' || !!activePlaylist()" (click)="showSection('playlists')">Playlists</button>
+    </nav>
+    <div class="side-lists">
       @for (playlist of playlists(); track playlist.id) {
         <button
           type="button"
-          class="chip"
+          class="playlist-chip"
           [class.active]="activePlaylist()?.id === playlist.id"
           (click)="openPlaylist(playlist.id)"
         >
-          <span class="chip-name">{{ playlist.name }}</span>
+          <span>{{ playlist.name }}</span>
           <span class="chip-count">{{ playlist.itemCount }}</span>
         </button>
       }
-      <form class="new-playlist" (submit)="createPlaylist($event)">
-        <label>
-          <span class="visually-hidden">Nombre de la lista</span>
-          <input
-            type="text"
-            [value]="newPlaylistName()"
-            maxlength="80"
-            placeholder="Nueva lista"
-            (input)="onNewPlaylistName($event)"
-          >
-        </label>
-        <button type="submit" class="btn btn-primary" [disabled]="creatingPlaylist() || !newPlaylistName().trim()">
-          Crear
-        </button>
-      </form>
-      @if (playlistError()) {
-        <p class="message message-error">{{ playlistError() }}</p>
-      }
-    </aside>
+    </div>
+    <form class="new-playlist" (submit)="createPlaylist($event)">
+      <label>
+        <span class="visually-hidden">Nombre de la lista</span>
+        <input type="text" [value]="newPlaylistName()" maxlength="80" placeholder="Nueva lista" (input)="onNewPlaylistName($event)">
+      </label>
+      <button type="submit" class="btn btn-primary" [disabled]="creatingPlaylist() || !newPlaylistName().trim()">Crear</button>
+    </form>
+  </aside>
 
-    <main class="stage">
-      @if (activePlaylist(); as playlist) {
-        <section class="panel">
-          <div class="section-head">
-            @if (renaming()) {
-              <form class="rename" (submit)="saveRename($event)">
-                <label class="visually-hidden" for="rename-playlist">Nuevo nombre</label>
-                <input id="rename-playlist" type="text" [value]="renameValue()" maxlength="80" (input)="onRenameInput($event)">
-                <button type="submit" class="btn btn-primary">Guardar</button>
-                <button type="button" class="btn btn-ghost" (click)="renaming.set(false)">Cancelar</button>
-              </form>
-            } @else {
-              <div>
-                <h2>{{ playlist.name }}</h2>
-                <p class="count">{{ trackCountLabel() }}</p>
-              </div>
-              <div class="head-actions">
-                <button type="button" class="btn btn-primary" (click)="playActivePlaylist()">Reproducir</button>
-                <button type="button" class="btn btn-ghost" (click)="startRename()">Renombrar</button>
-                <button type="button" class="btn btn-danger" (click)="deletePlaylist()">Borrar lista</button>
-              </div>
-            }
-          </div>
-          <app-audio-list
-            [entries]="playlistEntries()"
-            [selectedId]="player.current()?.id ?? -1"
-            [loading]="false"
-            emptyMessage="Esta lista está vacía. Añade canciones desde la biblioteca."
-            mode="playlist"
-            (selected)="playVisible($event)"
-            (edit)="editing.set($event)"
-            (remove)="removeFromPlaylist($event)"
-            (move)="moveEntry($event)"
-          ></app-audio-list>
-        </section>
-      } @else {
-        <section class="panel">
-          <div class="section-head">
-            <div>
-              <h2>Biblioteca</h2>
+  <div class="stage" [class.dropping]="isDragging()">
+    @if (actionError()) {
+      <p class="banner banner-error" role="alert">{{ actionError() }}</p>
+    }
+    @if (uploadMessage()) {
+      <p class="banner banner-ok">{{ uploadMessage() }}</p>
+    }
+    @if (uploading()) {
+      <div class="upload-line" role="progressbar" [attr.aria-valuenow]="uploadPercent() ?? 0" aria-valuemin="0" aria-valuemax="100">
+        <span [style.width.%]="uploadPercent() ?? 0"></span>
+      </div>
+      <p class="hint">{{ uploadStatus() }}</p>
+    }
+
+    @if (activePlaylist(); as playlist) {
+      <section class="view detail">
+        <button type="button" class="back" (click)="showSection('playlists')">Playlists</button>
+        @if (renaming()) {
+          <form class="rename" (submit)="saveRename($event)">
+            <label class="visually-hidden" for="rename-playlist">Nuevo nombre</label>
+            <input id="rename-playlist" type="text" [value]="renameValue()" maxlength="80" (input)="onRenameInput($event)">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <button type="button" class="btn btn-ghost" (click)="renaming.set(false)">Cancelar</button>
+          </form>
+        } @else {
+          <div class="hero">
+            <span class="hero-art" [style.background]="cover(playlist.name).background" aria-hidden="true">{{ cover(playlist.name).initials }}</span>
+            <div class="hero-copy">
+              <p class="eyebrow">Playlist</p>
+              <h1>{{ playlist.name }}</h1>
               <p class="count">{{ trackCountLabel() }}</p>
             </div>
           </div>
-          <label class="search">
-            <span class="visually-hidden">Buscar</span>
-            <input
-              type="search"
-              [value]="query()"
-              placeholder="Buscar título, artista, álbum o archivo"
-              (input)="onSearchInput($event)"
-            >
-          </label>
-          @if (searching() && !firstLoad()) {
-            <p class="searching">Buscando…</p>
-          }
-          <app-audio-list
-            [entries]="libraryEntries()"
-            [selectedId]="player.current()?.id ?? -1"
-            [loading]="firstLoad()"
-            [errorMessage]="libraryError()"
-            mode="library"
-            (selected)="playVisible($event)"
-            (edit)="editing.set($event)"
-            (add)="addingTrack.set($event)"
-            (delete)="deleteTrack($event)"
-          ></app-audio-list>
-        </section>
-      }
-
-      <section class="panel upload-panel">
-        <h2>Subir música</h2>
-        <div
-          class="dropzone"
-          [class.dropzone-active]="isDragging()"
-          (dragover)="onDragOver($event)"
-          (dragleave)="onDragLeave($event)"
-          (drop)="onDrop($event)"
-        >
-          <p>Arrastra audio aquí</p>
-          <button type="button" class="btn btn-primary" [disabled]="uploading()" (click)="openFilePicker()">
-            Elegir archivos
-          </button>
-          <p class="hint">MP3, M4A, AAC, WAV, FLAC, OGG u Opus. Máximo 500 MB.</p>
-          <input
-            #fileInput
-            type="file"
-            class="file-input-hidden"
-            [accept]="accept"
-            multiple
-            (change)="onFileSelected($event)"
-          >
-        </div>
-        @if (uploading()) {
-          <div
-            class="upload-bar"
-            role="progressbar"
-            [attr.aria-valuenow]="uploadPercent() ?? 0"
-            aria-valuemin="0"
-            aria-valuemax="100"
-          >
-            <span [style.width.%]="uploadPercent() ?? 0"></span>
+          <div class="hero-actions">
+            <button type="button" class="round-play" aria-label="Reproducir" (click)="playActivePlaylist()">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
+            </button>
+            <button type="button" class="more" aria-label="Opciones de la lista" [attr.aria-expanded]="playlistMenu()" (click)="playlistMenu.set(!playlistMenu())">
+              <span></span><span></span><span></span>
+            </button>
+            @if (playlistMenu()) {
+              <button type="button" class="menu-backdrop" aria-label="Cerrar menú" (click)="playlistMenu.set(false)"></button>
+              <div class="sheet" role="menu">
+                <button type="button" role="menuitem" (click)="playlistMenu.set(false); startRename()">Renombrar</button>
+                <button type="button" role="menuitem" class="danger" (click)="playlistMenu.set(false); deletePlaylist()">Borrar lista</button>
+              </div>
+            }
           </div>
-          <p class="hint">{{ uploadStatus() }}</p>
         }
+        <app-audio-list
+          [entries]="playlistEntries()"
+          [selectedId]="player.current()?.id ?? -1"
+          [loading]="false"
+          emptyMessage="Esta lista está vacía. Añade canciones desde Inicio."
+          mode="playlist"
+          (selected)="playVisible($event)"
+          (edit)="editing.set($event)"
+          (remove)="removeFromPlaylist($event)"
+          (move)="moveEntry($event)"
+          (reordered)="reorderPlaylist($event)"
+        ></app-audio-list>
       </section>
-    </main>
+    } @else if (section() === 'search') {
+      <section class="view">
+        <header class="top">
+          <h1>Buscar</h1>
+          <button type="button" class="plus" aria-label="Subir música" [disabled]="uploading()" (click)="openFilePicker()">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+          </button>
+        </header>
+        <label class="search">
+          <span class="visually-hidden">Buscar</span>
+          <input
+            type="search"
+            [value]="query()"
+            placeholder="Buscar título, artista, álbum o archivo"
+            (input)="onSearchInput($event)"
+          >
+        </label>
+        @if (searching() && !firstLoad()) {
+          <p class="hint">Buscando…</p>
+        }
+        <app-audio-list
+          [entries]="searchEntries()"
+          [selectedId]="player.current()?.id ?? -1"
+          [loading]="firstLoad()"
+          [errorMessage]="libraryError()"
+          emptyMessage="Nada coincide con la búsqueda."
+          mode="library"
+          (selected)="playVisible($event)"
+          (edit)="editing.set($event)"
+          (add)="addingTrack.set($event)"
+          (delete)="deleteTrack($event)"
+        ></app-audio-list>
+      </section>
+    } @else if (section() === 'playlists') {
+      <section class="view">
+        <header class="top">
+          <div>
+            <h1>Playlists</h1>
+            <p class="count">{{ playlists().length === 1 ? '1 lista' : playlists().length + ' listas' }}</p>
+          </div>
+          <button type="button" class="plus" aria-label="Subir música" [disabled]="uploading()" (click)="openFilePicker()">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+          </button>
+        </header>
+        @if (playlistError()) {
+          <p class="message message-error">{{ playlistError() }}</p>
+        }
+        @if (playlists().length === 0) {
+          <div class="empty-block">
+            <p>Todavía no hay listas.</p>
+          </div>
+        } @else {
+          <div class="grid">
+            @for (playlist of playlists(); track playlist.id) {
+              <button type="button" class="playlist-card playlist-chip" (click)="openPlaylist(playlist.id)">
+                <span class="card-art" [style.background]="cover(playlist.name).background">{{ cover(playlist.name).initials }}</span>
+                <span class="card-name">{{ playlist.name }}</span>
+                <span class="card-meta">{{ playlist.itemCount }} {{ playlist.itemCount === 1 ? 'canción' : 'canciones' }}</span>
+              </button>
+            }
+          </div>
+        }
+        <form class="new-playlist mobile-create" (submit)="createPlaylist($event)">
+          <label>
+            <span class="visually-hidden">Nombre de la lista</span>
+            <input type="text" [value]="newPlaylistName()" maxlength="80" placeholder="Nueva lista" (input)="onNewPlaylistName($event)">
+          </label>
+          <button type="submit" class="btn btn-primary" [disabled]="creatingPlaylist() || !newPlaylistName().trim()">Crear</button>
+        </form>
+      </section>
+    } @else {
+      <section class="view">
+        <header class="top">
+          <div>
+            <h1>Biblioteca</h1>
+            <p class="count">{{ trackCountLabel() }}</p>
+          </div>
+          <button type="button" class="plus" aria-label="Subir música" [disabled]="uploading()" (click)="openFilePicker()">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+          </button>
+        </header>
+        <app-audio-list
+          [entries]="homeEntries()"
+          [selectedId]="player.current()?.id ?? -1"
+          [loading]="firstLoad()"
+          [errorMessage]="libraryError()"
+          emptyMessage="Tu biblioteca está vacía. Sube música con el botón +."
+          mode="library"
+          (selected)="playVisible($event)"
+          (edit)="editing.set($event)"
+          (add)="addingTrack.set($event)"
+          (delete)="deleteTrack($event)"
+        ></app-audio-list>
+      </section>
+    }
   </div>
+
+  <nav class="tabbar" aria-label="Navegación">
+    <button type="button" [class.active]="section() === 'home' && !activePlaylist()" (click)="showLibrary()">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20h-6v-5H10v5H4z"/></svg>
+      Inicio
+    </button>
+    <button type="button" [class.active]="section() === 'search'" (click)="showSection('search')">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 4a6.5 6.5 0 0 1 5.2 10.4l3.9 3.9-1.4 1.4-3.9-3.9A6.5 6.5 0 1 1 10.5 4zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9z"/></svg>
+      Buscar
+    </button>
+    <button type="button" [class.active]="section() === 'playlists' || !!activePlaylist()" (click)="showSection('playlists')">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h10v2H5zm0 5h10v2H5zm0 5h7v2H5zm13-8.5 4 2.5-4 2.5z"/></svg>
+      Playlists
+    </button>
+  </nav>
 </div>
 
 <app-player-bar></app-player-bar>
+
+<input
+  #fileInput
+  type="file"
+  class="file-input-hidden"
+  [accept]="accept"
+  multiple
+  (change)="onFileSelected($event)"
+>
 
 @if (uploadDrafts(); as drafts) {
   <app-upload-dialog

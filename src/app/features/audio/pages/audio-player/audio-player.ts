@@ -8,12 +8,13 @@ import { PlayerBar } from '../../components/player-bar/player-bar';
 import { PlaylistPicker } from '../../components/playlist-picker/playlist-picker';
 import { UploadDialog } from '../../components/upload-dialog/upload-dialog';
 import { createUploadDraft, UploadDraft } from '../../models/upload-draft';
-import { Playlist } from '../../models/playlist';
+import { Playlist, PlaylistItem } from '../../models/playlist';
 import { Track, TrackMetadataPatch, TrackRow } from '../../models/track';
 import { AudioService } from '../../services/audio-service';
 import { PlayerService } from '../../services/player.service';
 import { PlaylistService } from '../../services/playlist-service';
 import { toUserMessage } from '../../utils/api-error';
+import { coverArt } from '../../utils/cover-art';
 import { SEARCH_DEBOUNCE_MS } from '../../utils/search-query';
 import { UPLOAD_ACCEPT, validateUploadFile } from '../../utils/upload-rules';
 
@@ -32,6 +33,9 @@ export class AudioPlayer implements OnInit {
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
   readonly accept = UPLOAD_ACCEPT;
+  readonly section = signal<'home' | 'search' | 'playlists'>('home');
+  readonly playlistMenu = signal(false);
+  readonly cover = coverArt;
   readonly query = signal('');
   readonly results = signal<Track[]>([]);
   readonly catalog = signal<Track[]>([]);
@@ -58,7 +62,11 @@ export class AudioPlayer implements OnInit {
 
   private readonly searchTerms = new Subject<string>();
 
-  readonly libraryEntries = computed<TrackRow[]>(() =>
+  readonly homeEntries = computed<TrackRow[]>(() =>
+    this.catalog().map((track) => ({ audioId: track.id, track })),
+  );
+
+  readonly searchEntries = computed<TrackRow[]>(() =>
     this.results().map((track) => ({ audioId: track.id, track })),
   );
 
@@ -74,13 +82,13 @@ export class AudioPlayer implements OnInit {
     }));
   });
 
-  readonly visibleEntries = computed(() =>
-    this.activePlaylist() ? this.playlistEntries() : this.libraryEntries(),
-  );
-
   readonly trackCountLabel = computed(() => {
     const playlist = this.activePlaylist();
-    const count = playlist ? (playlist.items?.length ?? playlist.itemCount) : this.libraryEntries().length;
+    const count = playlist
+      ? (playlist.items?.length ?? playlist.itemCount)
+      : this.section() === 'search'
+        ? this.searchEntries().length
+        : this.homeEntries().length;
     return count === 1 ? '1 canción' : `${count} canciones`;
   });
 
@@ -112,8 +120,16 @@ export class AudioPlayer implements OnInit {
   }
 
   showLibrary(): void {
-    this.activePlaylist.set(null);
-    this.renaming.set(false);
+    this.showSection('home');
+  }
+
+  showSection(section: 'home' | 'search' | 'playlists'): void {
+    this.section.set(section);
+    this.playlistMenu.set(false);
+    if (section !== 'playlists') {
+      this.activePlaylist.set(null);
+      this.renaming.set(false);
+    }
   }
 
   openPlaylist(id: number): void {
@@ -126,6 +142,7 @@ export class AudioPlayer implements OnInit {
             this.playlistError.set('No se pudo leer la lista.');
             return;
           }
+          this.section.set('playlists');
           this.activePlaylist.set(playlist);
           this.playlists.update((lists) =>
             lists.map((item) =>
@@ -219,7 +236,12 @@ export class AudioPlayer implements OnInit {
   }
 
   playVisible(track: Track): void {
-    const tracks = (this.activePlaylist() ? this.playlistEntries() : this.libraryEntries())
+    const source = this.activePlaylist()
+      ? this.playlistEntries()
+      : this.section() === 'search'
+        ? this.searchEntries()
+        : this.homeEntries();
+    const tracks = source
       .map((entry) => entry.track)
       .filter((entry): entry is Track => entry != null);
     const queue = this.player.queue();
@@ -258,7 +280,26 @@ export class AudioPlayer implements OnInit {
     const next = items.slice();
     const [moved] = next.splice(index, 1);
     next.splice(target, 0, moved);
-    const ordered = next.map((item, position) => ({ ...item, position: position + 1 }));
+    this.applyOrder(playlist, next);
+  }
+
+  reorderPlaylist(audioIds: number[]): void {
+    const playlist = this.activePlaylist();
+    if (!playlist?.items) {
+      return;
+    }
+    const byId = new Map(playlist.items.map((item) => [item.audioId, item]));
+    const next = audioIds
+      .map((audioId) => byId.get(audioId))
+      .filter((item): item is PlaylistItem => item != null);
+    if (next.length !== playlist.items.length) {
+      return;
+    }
+    this.applyOrder(playlist, next);
+  }
+
+  private applyOrder(playlist: Playlist, items: PlaylistItem[]): void {
+    const ordered = items.map((item, position) => ({ ...item, position: position + 1 }));
     this.activePlaylist.set({
       ...playlist,
       itemCount: ordered.length,
