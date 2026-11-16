@@ -7,6 +7,10 @@ export type ApiErrorCode =
   | 'FILE_REQUIRED'
   | 'INVALID_NAME'
   | 'INVALID_FILE'
+  | 'INVALID_BODY'
+  | 'INVALID_ORDER'
+  | 'FILE_TOO_LARGE'
+  | 'RANGE_NOT_SATISFIABLE'
   | 'NOT_FOUND'
   | 'STORAGE_ERROR'
   | 'INTERNAL'
@@ -14,4 +18,10 @@ export type ApiErrorCode =
   | 'UNAVAILABLE'
   | 'PLAYBACK_ERROR';
 
-export type ApiOperation = 'list' | 'upload' | 'delete' | 'playback';
+export type ApiOperation =
+  | 'list'
+  | 'upload'
+  | 'delete'
+  | 'playback'
+  | 'metadata'
+  | 'playlist';

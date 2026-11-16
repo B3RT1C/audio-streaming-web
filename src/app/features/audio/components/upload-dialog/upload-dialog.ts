@@ -9,20 +9,20 @@ import { UploadDraft } from '../../models/upload-draft';
 export class UploadDialog {
   readonly drafts = input.required<UploadDraft[]>();
   readonly busy = input(false);
+  readonly progress = input<number | null>(null);
+  readonly status = input('');
 
   readonly confirmed = output<UploadDraft[]>();
   readonly cancelled = output<void>();
 
   onNameInput(index: number, event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
-    this.drafts()[index].name = value;
+    this.drafts()[index].name = (event.target as HTMLInputElement).value;
   }
 
   canConfirm(): boolean {
     if (this.busy()) {
       return false;
     }
-
     return this.drafts().every((draft) => draft.name.trim().length > 0);
   }
 
@@ -30,12 +30,7 @@ export class UploadDialog {
     if (!this.canConfirm()) {
       return;
     }
-
-    const prepared = this.drafts().map((draft) => ({
-      ...draft,
-      name: draft.name.trim(),
-    }));
-    this.confirmed.emit(prepared);
+    this.confirmed.emit(this.drafts().map((draft) => ({ ...draft, name: draft.name.trim() })));
   }
 
   cancel(): void {
