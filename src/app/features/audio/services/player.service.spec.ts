@@ -81,6 +81,37 @@ describe('PlayerService', () => {
     expect(service.currentTime()).toBe(12);
   });
 
+  it('plays the queue in shuffle mode without repeating until it ends', () => {
+    const service = TestBed.inject(PlayerService);
+    const audio = fakeAudio();
+    service.bind(audio as unknown as HTMLAudioElement);
+    const queue = [1, 2, 3, 4].map((id) => ({ ...tracks[0], id, name: `${id}.mp3` }));
+
+    service.playShuffled(queue, 11);
+    expect(service.shuffle()).toBe(true);
+    expect(service.shuffleLabel()).toContain('Aleatorio');
+
+    const seen = new Set<number>();
+    for (let step = 0; step < queue.length; step += 1) {
+      const id = service.current()?.id ?? 0;
+      expect(seen.has(id)).toBe(false);
+      seen.add(id);
+      if (step < queue.length - 1) {
+        service.next();
+      }
+    }
+    expect(seen.size).toBe(queue.length);
+    service.next();
+    expect(audio.pause).toHaveBeenCalled();
+
+    service.cycleRepeat();
+    expect(service.repeat()).toBe('all');
+    expect(service.shuffle()).toBe(true);
+    service.cycleRepeat();
+    expect(service.repeat()).toBe('one');
+    expect(service.shuffle()).toBe(true);
+  });
+
   it('drops a removed track from the queue', () => {
     const service = TestBed.inject(PlayerService);
     service.playTracks(tracks, 1);

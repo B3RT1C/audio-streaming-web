@@ -1,5 +1,5 @@
 /**
- * Validates web API paths against the 0.3 client contract.
+ * Validates web API paths against the 0.4 client contract.
  * Run: node scripts/ci/check-api-contract.mjs
  */
 import fs from 'node:fs';
@@ -16,6 +16,8 @@ const catalogServicePath = path.join(root, 'src/app/features/audio/services/cata
 const metadataDialogPath = path.join(root, 'src/app/features/audio/components/metadata-dialog/metadata-dialog.ts');
 const apiErrorPath = path.join(root, 'src/app/features/audio/utils/api-error.ts');
 const playerPagePath = path.join(root, 'src/app/features/audio/pages/audio-player/audio-player.ts');
+const filtersPath = path.join(root, 'src/app/features/audio/utils/library-filters.ts');
+const originPath = path.join(root, 'src/app/core/api-origin.ts');
 const prodEnvPath = path.join(root, 'src/environments/environment.prod.ts');
 const configPath = path.join(root, 'public/config.json');
 
@@ -67,8 +69,20 @@ if (!Object.prototype.hasOwnProperty.call(config, 'apiUrl')) {
 }
 
 const audioService = fs.readFileSync(audioServicePath, 'utf8');
-if (!audioService.includes(".set('tag'")) fail('GET /audios must send the tag query param');
+if (!audioService.includes('audioSearchParams')) fail('GET /audios must build filters with audioSearchParams');
+if (!audioService.includes('listShuffled')) fail('GET /audios must support shuffle and seed');
 if (!audioService.includes('/tags')) fail('audio service must call PUT /audios/{id}/tags');
+
+const filters = fs.readFileSync(filtersPath, 'utf8');
+for (const key of ['q', 'title', 'artist', 'tag', 'artistTag', 'playlistTag', 'shuffle', 'seed']) {
+  if (!filters.includes(`'${key}'`)) fail(`library filters must send ${key}`);
+}
+if (!filters.includes('viewToSearch') || !filters.includes('viewFromSearch')) {
+  fail('filters must round-trip through the page query string');
+}
+
+const origin = fs.readFileSync(originPath, 'utf8');
+if (!origin.includes('DEFAULT_API_PORT = 8080')) fail('default API port must stay 8080');
 
 const playlistService = fs.readFileSync(playlistServicePath, 'utf8');
 if (!playlistService.includes('audioIds')) {
@@ -78,12 +92,18 @@ if (!playlistService.includes('normalizePlaylistItem')) {
   fail('addItem must read the item payload, not a playlist');
 }
 if (!playlistService.includes('/tags')) fail('playlist service must call PUT /playlists/{id}/tags');
+if (!playlistService.includes('catalogSearchParams')) {
+  fail('GET /playlists must send q and repeated tag');
+}
 
 const catalogService = fs.readFileSync(catalogServicePath, 'utf8');
 if (!catalogService.includes('API_PATHS.artists') || !catalogService.includes('API_PATHS.tags')) {
   fail('catalog service must use API_PATHS.artists and API_PATHS.tags');
 }
 if (!catalogService.includes('/tags')) fail('catalog service must call PUT /artists/{id}/tags');
+if (!catalogService.includes('catalogSearchParams')) {
+  fail('GET /artists must send q and repeated tag');
+}
 
 const playlistModel = fs.readFileSync(playlistModelPath, 'utf8');
 if (!playlistModel.includes('itemCount')) fail('playlist model must keep itemCount from list summaries');
@@ -94,7 +114,7 @@ const dialog = fs.readFileSync(metadataDialogPath, 'utf8');
 if (!dialog.includes('secondaryTitle')) fail('the song editor must send secondaryTitle');
 
 const errors = fs.readFileSync(apiErrorPath, 'utf8');
-for (const code of ['FILE_TOO_LARGE', 'INVALID_ORDER', 'RANGE_NOT_SATISFIABLE']) {
+for (const code of ['FILE_TOO_LARGE', 'INVALID_ORDER', 'INVALID_QUERY', 'RANGE_NOT_SATISFIABLE']) {
   if (!errors.includes(code)) fail(`missing error code ${code}`);
 }
 
@@ -102,7 +122,10 @@ const playerPage = fs.readFileSync(playerPagePath, 'utf8');
 if (!playerPage.includes('refreshLibrary()')) {
   fail('the player must reload the library after upload, because POST /audios returns no id');
 }
+if (!playerPage.includes('playShuffled')) {
+  fail('the player must be able to start a shuffled queue');
+}
 
 console.log(
-  'CONTRACT OK: web client matches backend 0.3.0 (/audios, /playlists, /artists, /tags, secondaryTitle)',
+  'CONTRACT OK: web client matches backend 0.4.0 (/audios filters, shuffle, /playlists, /artists, /tags)',
 );

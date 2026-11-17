@@ -8,6 +8,7 @@ const CODE_MESSAGES: Record<string, string> = {
   FILE_TOO_LARGE: 'El archivo es demasiado grande (máximo 500 MB).',
   INVALID_BODY: 'Los datos enviados no son válidos.',
   INVALID_ORDER: 'El orden de la lista no coincide con sus canciones.',
+  INVALID_QUERY: 'Los filtros enviados no son válidos.',
   RANGE_NOT_SATISFIABLE: 'No se puede reproducir ese punto del audio.',
   NOT_FOUND: 'No se encontró la canción.',
   STORAGE_ERROR: 'Error al guardar el archivo.',

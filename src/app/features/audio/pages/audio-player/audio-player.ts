@@ -1,8 +1,8 @@
 import { Component, computed, DestroyRef, ElementRef, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { merge, of, Subject } from 'rxjs';
-import { catchError, debounceTime, distinctUntilChanged, map, skip, switchMap, take, tap } from 'rxjs/operators';
+import { switchMap } from 'rxjs/operators';
 import { AudioList } from '../../components/audio-list/audio-list';
+import { FilterPanel } from '../../components/filter-panel/filter-panel';
 import { MetadataDialog } from '../../components/metadata-dialog/metadata-dialog';
 import { PlayerBar } from '../../components/player-bar/player-bar';
 import { PlaylistPicker } from '../../components/playlist-picker/playlist-picker';
@@ -18,6 +18,21 @@ import { PlayerService } from '../../services/player.service';
 import { PlaylistService } from '../../services/playlist-service';
 import { toUserMessage } from '../../utils/api-error';
 import { coverArt } from '../../utils/cover-art';
+import {
+  emptyLibraryFilters,
+  emptyNameTagFilters,
+  libraryFiltersActive,
+  libraryTextOnlyChange,
+  LibraryFilters,
+  NameTagFilters,
+  nameTagFiltersActive,
+  sameLibraryFilters,
+  sameNameTagFilters,
+  uniqueTags,
+  viewFromSearch,
+  writeViewSearch,
+} from '../../utils/library-filters';
+import { randomSeed } from '../../utils/playback-queue';
 import { SEARCH_DEBOUNCE_MS } from '../../utils/search-query';
 import { UPLOAD_ACCEPT, validateUploadFile } from '../../utils/upload-rules';
 
@@ -32,7 +47,7 @@ interface TagEditTarget {
 
 @Component({
   selector: 'app-audio-player',
-  imports: [AudioList, UploadDialog, MetadataDialog, PlaylistPicker, PlayerBar, TagsDialog],
+  imports: [AudioList, UploadDialog, MetadataDialog, PlaylistPicker, PlayerBar, TagsDialog, FilterPanel],
   templateUrl: './audio-player.html',
   styleUrl: './audio-player.scss',
 })
@@ -50,11 +65,19 @@ export class AudioPlayer implements OnInit {
   readonly playlistMenu = signal(false);
   readonly cover = coverArt;
   readonly query = signal('');
-  readonly tagFilter = signal('');
+  readonly titleFilter = signal('');
+  readonly artistFilter = signal('');
+  readonly songTags = signal<string[]>([]);
+  readonly artistTags = signal<string[]>([]);
+  readonly playlistTags = signal<string[]>([]);
   readonly results = signal<Track[]>([]);
-  readonly tagged = signal<Track[]>([]);
   readonly catalog = signal<Track[]>([]);
   readonly playlists = signal<Playlist[]>([]);
+  readonly playlistQuery = signal('');
+  readonly playlistTagFilters = signal<string[]>([]);
+  readonly playlistResults = signal<Playlist[] | null>(null);
+  readonly artistQuery = signal('');
+  readonly artistTagFilters = signal<string[]>([]);
   readonly artists = signal<Artist[]>([]);
   readonly tags = signal<TagSummary[]>([]);
   readonly artistsLoading = signal(false);
@@ -84,21 +107,47 @@ export class AudioPlayer implements OnInit {
   readonly renaming = signal(false);
   readonly renameValue = signal('');
 
-  private readonly searchTerms = new Subject<string>();
+  private libraryTimer = 0;
+  private playlistTimer = 0;
+  private artistTimer = 0;
+  private libraryGeneration = 0;
 
   readonly tagNames = computed(() => this.tags().map((tag) => tag.name));
 
-  readonly homeEntries = computed<TrackRow[]>(() => {
-    const source = this.tagFilter().trim() ? this.tagged() : this.catalog();
-    return source.map((track) => ({ audioId: track.id, track }));
-  });
+  readonly libraryFilters = computed<LibraryFilters>(() => ({
+    q: this.query(),
+    title: this.titleFilter(),
+    artist: this.artistFilter(),
+    tags: this.songTags(),
+    artistTags: this.artistTags(),
+    playlistTags: this.playlistTags(),
+  }));
 
-  readonly searchEntries = computed<TrackRow[]>(() => {
-    const query = this.query().trim();
-    const tag = this.tagFilter().trim();
-    const source = !query && tag ? this.tagged() : this.results();
-    return source.map((track) => ({ audioId: track.id, track }));
-  });
+  readonly playlistFilters = computed<NameTagFilters>(() => ({
+    q: this.playlistQuery(),
+    tags: this.playlistTagFilters(),
+  }));
+
+  readonly artistFilters = computed<NameTagFilters>(() => ({
+    q: this.artistQuery(),
+    tags: this.artistTagFilters(),
+  }));
+
+  readonly filtersActive = computed(() => libraryFiltersActive(this.libraryFilters()));
+  readonly playlistFiltersActive = computed(() => nameTagFiltersActive(this.playlistFilters()));
+  readonly artistFiltersActive = computed(() => nameTagFiltersActive(this.artistFilters()));
+
+  readonly shownTracks = computed(() => (this.filtersActive() ? this.results() : this.catalog()));
+
+  readonly visiblePlaylists = computed(() => this.playlistResults() ?? this.playlists());
+
+  readonly homeEntries = computed<TrackRow[]>(() =>
+    this.shownTracks().map((track) => ({ audioId: track.id, track })),
+  );
+
+  readonly searchEntries = computed<TrackRow[]>(() =>
+    this.shownTracks().map((track) => ({ audioId: track.id, track })),
+  );
 
   readonly playlistEntries = computed<TrackRow[]>(() => {
     const playlist = this.activePlaylist();
@@ -123,30 +172,109 @@ export class AudioPlayer implements OnInit {
   });
 
   constructor() {
-    const immediate = this.searchTerms.pipe(take(1));
-    const later = this.searchTerms.pipe(
-      skip(1),
-      debounceTime(SEARCH_DEBOUNCE_MS),
-      map((term) => term.trim()),
-      distinctUntilChanged(),
-    );
-    merge(immediate, later)
-      .pipe(
-        switchMap((term) => this.loadLibrary(term)),
-        takeUntilDestroyed(),
-      )
-      .subscribe();
+    this.destroyRef.onDestroy(() => {
+      window.clearTimeout(this.libraryTimer);
+      window.clearTimeout(this.playlistTimer);
+      window.clearTimeout(this.artistTimer);
+    });
   }
 
   ngOnInit(): void {
-    this.searchTerms.next('');
+    const restored = viewFromSearch(location.search);
+    this.query.set(restored.library.q);
+    this.titleFilter.set(restored.library.title);
+    this.artistFilter.set(restored.library.artist);
+    this.songTags.set(restored.library.tags);
+    this.artistTags.set(restored.library.artistTags);
+    this.playlistTags.set(restored.library.playlistTags);
+    this.playlistQuery.set(restored.playlists.q);
+    this.playlistTagFilters.set(restored.playlists.tags);
+    this.artistQuery.set(restored.artists.q);
+    this.artistTagFilters.set(restored.artists.tags);
+    if (restored.view !== 'home') {
+      this.section.set(restored.view);
+    }
+    this.loadCatalog();
+    if (libraryFiltersActive(restored.library)) {
+      this.loadLibraryNow();
+    }
     this.reloadPlaylists();
+    if (nameTagFiltersActive(restored.playlists)) {
+      this.loadPlaylistResults();
+    }
+    if (restored.view === 'artists') {
+      this.loadArtists();
+    }
+    if (restored.view === 'tags') {
+      this.loadTags();
+    }
+    if (restored.playlistId != null) {
+      this.openPlaylist(restored.playlistId);
+    }
   }
 
   onSearchInput(event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
-    this.query.set(value);
-    this.searchTerms.next(value);
+    this.query.set((event.target as HTMLInputElement).value);
+    this.writeUrl();
+    this.scheduleLibrary();
+  }
+
+  onLibraryFilters(next: LibraryFilters): void {
+    const previous = this.libraryFilters();
+    this.applyLibrary(next);
+    if (sameLibraryFilters(previous, this.libraryFilters())) {
+      return;
+    }
+    this.writeUrl();
+    if (libraryTextOnlyChange(previous, this.libraryFilters())) {
+      this.scheduleLibrary();
+      return;
+    }
+    this.loadLibraryNow();
+  }
+
+  clearLibraryFilters(): void {
+    this.onLibraryFilters(emptyLibraryFilters());
+  }
+
+  onPlaylistFilters(next: NameTagFilters): void {
+    const previous = this.playlistFilters();
+    const normalized = { q: next.q, tags: uniqueTags(next.tags) };
+    if (sameNameTagFilters(previous, normalized)) {
+      return;
+    }
+    this.playlistQuery.set(normalized.q);
+    this.playlistTagFilters.set(normalized.tags);
+    this.writeUrl();
+    if (sameNameTagFilters({ q: previous.q, tags: normalized.tags }, previous)) {
+      this.schedulePlaylists();
+      return;
+    }
+    this.loadPlaylistResults();
+  }
+
+  clearPlaylistFilters(): void {
+    this.onPlaylistFilters(emptyNameTagFilters());
+  }
+
+  onArtistFilters(next: NameTagFilters): void {
+    const previous = this.artistFilters();
+    const normalized = { q: next.q, tags: uniqueTags(next.tags) };
+    if (sameNameTagFilters(previous, normalized)) {
+      return;
+    }
+    this.artistQuery.set(normalized.q);
+    this.artistTagFilters.set(normalized.tags);
+    this.writeUrl();
+    if (sameNameTagFilters({ q: previous.q, tags: normalized.tags }, previous)) {
+      this.scheduleArtists();
+      return;
+    }
+    this.loadArtists();
+  }
+
+  clearArtistFilters(): void {
+    this.onArtistFilters(emptyNameTagFilters());
   }
 
   showLibrary(): void {
@@ -166,39 +294,42 @@ export class AudioPlayer implements OnInit {
     if (section === 'tags') {
       this.loadTags();
     }
+    this.writeUrl();
   }
 
   applyTag(name: string): void {
-    const tag = name.trim();
-    if (!tag) {
-      return;
-    }
-    this.tagFilter.set(tag);
-    this.activePlaylist.set(null);
-    this.renaming.set(false);
-    this.playlistMenu.set(false);
-    const query = this.query().trim();
-    this.section.set(query ? 'search' : 'home');
-    this.loadLibrary('').pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
-    if (query) {
-      this.loadLibrary(query).pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
-    }
+    this.addLibraryTag(name, 'tags');
   }
 
-  clearTag(): void {
-    if (!this.tagFilter()) {
-      return;
-    }
-    this.tagFilter.set('');
-    this.tagged.set([]);
-    this.loadLibrary(this.query().trim()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
+  applyArtistTag(name: string): void {
+    this.addLibraryTag(name, 'artistTags');
+  }
+
+  applyPlaylistTag(name: string): void {
+    this.addLibraryTag(name, 'playlistTags');
   }
 
   searchArtist(name: string): void {
-    this.query.set(name);
+    const artist = name.trim();
+    if (!artist) {
+      return;
+    }
     this.activePlaylist.set(null);
-    this.section.set('search');
-    this.searchTerms.next(name);
+    this.renaming.set(false);
+    this.playlistMenu.set(false);
+    this.section.set('home');
+    this.onLibraryFilters({ ...this.libraryFilters(), artist });
+  }
+
+  playFilteredRandom(): void {
+    this.playShuffledList(this.shownTracks());
+  }
+
+  playActivePlaylistRandom(): void {
+    const tracks = this.playlistEntries()
+      .map((entry) => entry.track)
+      .filter((entry): entry is Track => entry != null);
+    this.playShuffledList(tracks);
   }
 
   openEdit(track: Track): void {
@@ -256,6 +387,7 @@ export class AudioPlayer implements OnInit {
           );
           this.playlistError.set('');
           this.renaming.set(false);
+          this.writeUrl();
         },
         error: (err: unknown) => this.playlistError.set(toUserMessage('playlist', err)),
       });
@@ -334,6 +466,7 @@ export class AudioPlayer implements OnInit {
         next: () => {
           this.activePlaylist.set(null);
           this.renaming.set(false);
+          this.writeUrl();
           this.reloadPlaylists();
         },
         error: (err: unknown) => this.actionError.set(toUserMessage('playlist', err)),
@@ -695,52 +828,113 @@ export class AudioPlayer implements OnInit {
     });
   }
 
-  private loadLibrary(term: string) {
-    const tag = this.tagFilter().trim();
-    this.searching.set(true);
-    this.libraryError.set('');
-    return this.audioService.list(term, tag).pipe(
-      tap((tracks) => {
-        if (!term && !tag) {
-          this.catalog.set(tracks);
-          this.results.set(tracks);
-        } else if (!term && tag) {
-          this.tagged.set(tracks);
-        } else {
-          this.results.set(tracks);
-        }
-        this.player.syncCatalog(this.catalog());
-        this.searching.set(false);
-        this.firstLoad.set(false);
-      }),
-      catchError((err: unknown) => {
-        this.searching.set(false);
-        this.firstLoad.set(false);
-        this.libraryError.set(toUserMessage('list', err));
-        return of(null);
-      }),
-    );
-  }
-
-  private refreshLibrary(): void {
-    const term = this.query().trim();
-    const tag = this.tagFilter().trim();
-    if (!term && !tag) {
-      this.loadLibrary('').pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
+  private addLibraryTag(name: string, key: 'tags' | 'artistTags' | 'playlistTags'): void {
+    const tag = name.trim();
+    if (!tag) {
       return;
     }
+    const current = this.libraryFilters();
+    this.activePlaylist.set(null);
+    this.renaming.set(false);
+    this.playlistMenu.set(false);
+    this.section.set(current.q.trim() ? 'search' : 'home');
+    this.onLibraryFilters({ ...current, [key]: uniqueTags([...current[key], tag]) });
+  }
+
+  private playShuffledList(tracks: Track[]): void {
+    if (tracks.length === 0) {
+      this.actionError.set('No hay canciones para reproducir.');
+      return;
+    }
+    this.actionError.set('');
+    this.player.playShuffled(tracks, randomSeed());
+  }
+
+  private applyLibrary(next: LibraryFilters): void {
+    this.query.set(next.q);
+    this.titleFilter.set(next.title);
+    this.artistFilter.set(next.artist);
+    this.songTags.set(uniqueTags(next.tags));
+    this.artistTags.set(uniqueTags(next.artistTags));
+    this.playlistTags.set(uniqueTags(next.playlistTags));
+  }
+
+  private scheduleLibrary(): void {
+    window.clearTimeout(this.libraryTimer);
+    this.libraryTimer = window.setTimeout(() => this.loadLibraryNow(), SEARCH_DEBOUNCE_MS);
+  }
+
+  private schedulePlaylists(): void {
+    window.clearTimeout(this.playlistTimer);
+    this.playlistTimer = window.setTimeout(() => this.loadPlaylistResults(), SEARCH_DEBOUNCE_MS);
+  }
+
+  private scheduleArtists(): void {
+    window.clearTimeout(this.artistTimer);
+    this.artistTimer = window.setTimeout(() => this.loadArtists(), SEARCH_DEBOUNCE_MS);
+  }
+
+  private loadCatalog(): void {
     this.audioService
       .list('')
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((tracks) => {
-        this.catalog.set(tracks);
-        this.player.syncCatalog(tracks);
+      .subscribe({
+        next: (tracks) => {
+          this.catalog.set(tracks);
+          if (!this.filtersActive()) {
+            this.results.set(tracks);
+          }
+          this.player.syncCatalog(tracks);
+          this.searching.set(false);
+          this.firstLoad.set(false);
+          this.libraryError.set('');
+        },
+        error: (err: unknown) => {
+          this.searching.set(false);
+          this.firstLoad.set(false);
+          this.libraryError.set(toUserMessage('list', err));
+        },
       });
-    if (tag) {
-      this.loadLibrary('').pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
+  }
+
+  private loadLibraryNow(): void {
+    window.clearTimeout(this.libraryTimer);
+    const filters = this.libraryFilters();
+    const generation = ++this.libraryGeneration;
+    if (!libraryFiltersActive(filters)) {
+      this.results.set(this.catalog());
+      this.searching.set(false);
+      return;
     }
-    if (term) {
-      this.loadLibrary(term).pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
+    this.searching.set(true);
+    this.libraryError.set('');
+    this.audioService
+      .list(filters)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (tracks) => {
+          if (generation !== this.libraryGeneration) {
+            return;
+          }
+          this.results.set(tracks);
+          this.searching.set(false);
+          this.firstLoad.set(false);
+        },
+        error: (err: unknown) => {
+          if (generation !== this.libraryGeneration) {
+            return;
+          }
+          this.searching.set(false);
+          this.firstLoad.set(false);
+          this.libraryError.set(toUserMessage('list', err));
+        },
+      });
+  }
+
+  private refreshLibrary(): void {
+    this.loadCatalog();
+    if (this.filtersActive()) {
+      this.loadLibraryNow();
     }
   }
 
@@ -759,13 +953,37 @@ export class AudioPlayer implements OnInit {
         },
         error: (err: unknown) => this.playlistError.set(toUserMessage('playlist', err)),
       });
+    if (this.playlistFiltersActive()) {
+      this.loadPlaylistResults();
+    }
+  }
+
+  private loadPlaylistResults(): void {
+    window.clearTimeout(this.playlistTimer);
+    const filters = this.playlistFilters();
+    if (!nameTagFiltersActive(filters)) {
+      this.playlistResults.set(null);
+      return;
+    }
+    this.playlistService
+      .list(filters.q, filters.tags)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (playlists) => {
+          this.playlistResults.set(playlists);
+          this.playlistError.set('');
+        },
+        error: (err: unknown) => this.playlistError.set(toUserMessage('playlist', err)),
+      });
   }
 
   private loadArtists(): void {
+    window.clearTimeout(this.artistTimer);
+    const filters = this.artistFilters();
     this.artistsLoading.set(true);
     this.artistsError.set('');
     this.catalogService
-      .listArtists()
+      .listArtists(filters.q, filters.tags)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (artists) => {
@@ -798,7 +1016,17 @@ export class AudioPlayer implements OnInit {
       });
   }
 
-  private ensureTagCatalog(): void {
+  private writeUrl(): void {
+    writeViewSearch({
+      view: this.section(),
+      playlistId: this.activePlaylist()?.id ?? null,
+      library: this.libraryFilters(),
+      playlists: this.playlistFilters(),
+      artists: this.artistFilters(),
+    });
+  }
+
+  ensureTagCatalog(): void {
     if (this.tagsLoaded() || this.tagsLoading()) {
       return;
     }

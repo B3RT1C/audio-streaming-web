@@ -1,8 +1,9 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { RuntimeConfigService } from '../../../core/runtime-config.service';
+import { catalogSearchParams } from '../utils/library-filters';
 import {
   normalizePlaylist,
   normalizePlaylistItem,
@@ -19,8 +20,15 @@ export class PlaylistService {
   private http = inject(HttpClient);
   private config = inject(RuntimeConfigService);
 
-  list(): Observable<Playlist[]> {
-    return this.http.get<unknown>(this.collection()).pipe(map((body) => normalizePlaylistList(body)));
+  /** `q` matches the playlist name. Each `tag` is required. Blanks are omitted. */
+  list(query = '', tags: string[] = []): Observable<Playlist[]> {
+    let params = new HttpParams();
+    catalogSearchParams({ q: query, tags }).forEach((value, key) => {
+      params = params.append(key, value);
+    });
+    return this.http
+      .get<unknown>(this.collection(), { params })
+      .pipe(map((body) => normalizePlaylistList(body)));
   }
 
   get(id: number): Observable<Playlist | null> {

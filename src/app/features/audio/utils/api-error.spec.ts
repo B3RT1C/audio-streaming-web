@@ -26,7 +26,13 @@ describe('toUserMessage', () => {
       error: { message: 'Range not satisfiable', code: 'RANGE_NOT_SATISFIABLE' },
     });
 
+    const query = new HttpErrorResponse({
+      status: 400,
+      error: { message: 'seed must be an integer', code: 'INVALID_QUERY' },
+    });
+
     expect(toUserMessage('playlist', order)).toBe('El orden de la lista no coincide con sus canciones.');
+    expect(toUserMessage('list', query)).toBe('Los filtros enviados no son válidos.');
     expect(toUserMessage('playback', range)).toBe('No se puede reproducir ese punto del audio.');
   });
 

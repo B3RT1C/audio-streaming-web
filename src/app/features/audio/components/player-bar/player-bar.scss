@@ -116,6 +116,24 @@ svg {
   font-size: 0.8rem;
 }
 
+.shuffle-flag {
+  display: inline-block;
+  margin-right: 0.35rem;
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mode-note {
+  margin: 0.15rem 0 0.2rem;
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 650;
+  text-align: center;
+}
+
 .play,
 .play-lg,
 .play-xl,

@@ -79,6 +79,39 @@ describe('AudioService', () => {
     replaced.flush({ id: 1, name: 'a.mp3', title: 'Luna', secondaryTitle: 'Moon', extension: 'mp3', tags: [] });
   });
 
+  it('sends every 0.4 filter and a deterministic shuffle seed, skipping blanks', () => {
+    service
+      .list({
+        q: ' ',
+        title: 'Noche',
+        artist: 'Luna',
+        tags: ['Live', 'Pop'],
+        artistTags: ['Jazz'],
+        playlistTags: ['Viaje'],
+      })
+      .subscribe();
+    const listed = http.expectOne((request) => request.url === config.url('/audios'));
+    expect(listed.request.params.has('q')).toBe(false);
+    expect(listed.request.params.get('title')).toBe('Noche');
+    expect(listed.request.params.get('artist')).toBe('Luna');
+    expect(listed.request.params.getAll('tag')).toEqual(['Live', 'Pop']);
+    expect(listed.request.params.getAll('artistTag')).toEqual(['Jazz']);
+    expect(listed.request.params.getAll('playlistTag')).toEqual(['Viaje']);
+    listed.flush([]);
+
+    service.listShuffled(
+      { q: 'luna', title: '', artist: '', tags: ['Live'], artistTags: [], playlistTags: [] },
+      42,
+    ).subscribe();
+    const shuffled = http.expectOne((request) => request.url === config.url('/audios'));
+    expect(shuffled.request.params.get('shuffle')).toBe('true');
+    expect(shuffled.request.params.get('seed')).toBe('42');
+    expect(shuffled.request.params.get('q')).toBe('luna');
+    expect(shuffled.request.params.get('tag')).toBe('Live');
+    expect(shuffled.request.params.has('title')).toBe(false);
+    shuffled.flush([]);
+  });
+
   it('patches title, artist, album and track number', () => {
     const patch = { title: 'Luna', artist: 'Sol', album: 'Noche', trackNumber: null };
     service.updateMetadata(4, patch).subscribe();

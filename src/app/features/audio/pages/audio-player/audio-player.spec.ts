@@ -13,6 +13,7 @@ describe('AudioPlayer', () => {
       providers: [provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
 
+    history.replaceState(history.state, '', '/');
     fixture = TestBed.createComponent(AudioPlayer);
     http = TestBed.inject(HttpTestingController);
     fixture.detectChanges();
@@ -219,7 +220,6 @@ describe('AudioPlayer', () => {
     fixture.componentInstance.query.set('noche');
     const row = fixture.nativeElement.querySelector('.tag-row') as HTMLButtonElement;
     row.click();
-    http.expectOne((request) => request.params.get('tag') === 'Live' && !request.params.has('q')).flush([]);
     http
       .expectOne((request) => request.params.get('tag') === 'Live' && request.params.get('q') === 'noche')
       .flush([
@@ -280,5 +280,35 @@ describe('AudioPlayer', () => {
     ]);
     fixture.detectChanges();
     expect(fixture.componentInstance.artists()[0]?.tags).toEqual(['Pop']);
+  });
+
+  it('writes the active library filters into the url and asks for all of them', () => {
+    fixture.componentInstance.onLibraryFilters({
+      q: 'luna',
+      title: 'Noche',
+      artist: 'Luna',
+      tags: ['Live', 'Pop'],
+      artistTags: ['Jazz'],
+      playlistTags: ['Viaje'],
+    });
+    const listed = http.expectOne(
+      (request) => request.method === 'GET' && request.url.endsWith('/audios') && request.params.has('title'),
+    );
+    expect(listed.request.params.get('q')).toBe('luna');
+    expect(listed.request.params.get('title')).toBe('Noche');
+    expect(listed.request.params.get('artist')).toBe('Luna');
+    expect(listed.request.params.getAll('tag')).toEqual(['Live', 'Pop']);
+    expect(listed.request.params.getAll('artistTag')).toEqual(['Jazz']);
+    expect(listed.request.params.getAll('playlistTag')).toEqual(['Viaje']);
+    listed.flush([]);
+    expect(location.search).toContain('title=Noche');
+    expect(location.search).toContain('tag=Live');
+    expect(location.search).toContain('tag=Pop');
+    expect(location.search).toContain('artistTag=Jazz');
+    expect(location.search).toContain('playlistTag=Viaje');
+
+    fixture.componentInstance.clearLibraryFilters();
+    expect(location.search).toBe('');
+    expect(fixture.componentInstance.filtersActive()).toBe(false);
   });
 });

@@ -10,7 +10,7 @@
     </ul>
   }
   <label class="composer">
-    <span class="visually-hidden">Añadir etiqueta</span>
+    <span class="visually-hidden">{{ label() }}</span>
     <input
       type="text"
       role="combobox"
@@ -19,7 +19,7 @@
       [value]="draft()"
       [attr.aria-expanded]="open() && options().length > 0"
       aria-autocomplete="list"
-      placeholder="Añadir etiqueta"
+      [placeholder]="placeholder()"
       (input)="onDraft($event)"
       (focus)="open.set(true)"
       (blur)="closeSoon()"

@@ -46,6 +46,18 @@
   font-size: 0.72rem;
 }
 
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: none;
+}
+
+.shuffle-play {
+  min-height: 44px;
+  padding-inline: 0.9rem;
+}
+
 .plus,
 .round-play,
 .more,

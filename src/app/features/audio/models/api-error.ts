@@ -9,6 +9,7 @@ export type ApiErrorCode =
   | 'INVALID_FILE'
   | 'INVALID_BODY'
   | 'INVALID_ORDER'
+  | 'INVALID_QUERY'
   | 'FILE_TOO_LARGE'
   | 'RANGE_NOT_SATISFIABLE'
   | 'NOT_FOUND'

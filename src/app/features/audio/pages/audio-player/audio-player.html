@@ -69,7 +69,7 @@
               @if (playlist.tags.length) {
                 <div class="chip-row">
                   @for (tag of playlist.tags; track tag) {
-                    <button type="button" class="tag-chip" [attr.aria-label]="'Filtrar por ' + tag" (click)="applyTag(tag)">{{ tag }}</button>
+                    <button type="button" class="tag-chip" [attr.aria-label]="'Filtrar por etiqueta de lista ' + tag" (click)="applyPlaylistTag(tag)">{{ tag }}</button>
                   }
                 </div>
               }
@@ -79,6 +79,7 @@
             <button type="button" class="round-play" aria-label="Reproducir" (click)="playActivePlaylist()">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>
             </button>
+            <button type="button" class="btn btn-ghost shuffle-play" (click)="playActivePlaylistRandom()">Aleatorio</button>
             <button type="button" class="more" aria-label="Opciones de la lista" [attr.aria-expanded]="playlistMenu()" (click)="playlistMenu.set(!playlistMenu())">
               <span></span><span></span><span></span>
             </button>
@@ -110,9 +111,12 @@
       <section class="view">
         <header class="top">
           <h1>Buscar</h1>
-          <button type="button" class="plus" aria-label="Subir música" [disabled]="uploading()" (click)="openFilePicker()">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
-          </button>
+          <div class="top-actions">
+            <button type="button" class="btn btn-ghost shuffle-play" [disabled]="shownTracks().length === 0" (click)="playFilteredRandom()">Aleatorio</button>
+            <button type="button" class="plus" aria-label="Subir música" [disabled]="uploading()" (click)="openFilePicker()">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
+            </button>
+          </div>
         </header>
         <label class="search">
           <span class="visually-hidden">Buscar</span>
@@ -123,14 +127,14 @@
             (input)="onSearchInput($event)"
           >
         </label>
-        @if (tagFilter(); as tag) {
-          <div class="active-filter">
-            <button type="button" class="tag-chip current" [attr.aria-label]="'Quitar filtro ' + tag" (click)="clearTag()">
-              {{ tag }} <span aria-hidden="true">×</span>
-            </button>
-            <span>Se combina con la búsqueda</span>
-          </div>
-        }
+        <app-filter-panel
+          mode="library"
+          [library]="libraryFilters()"
+          [suggestions]="tagNames()"
+          (libraryChange)="onLibraryFilters($event)"
+          (cleared)="clearLibraryFilters()"
+          (suggestionsNeeded)="ensureTagCatalog()"
+        ></app-filter-panel>
         @if (searching() && !firstLoad()) {
           <p class="hint">Buscando…</p>
         }
@@ -153,22 +157,31 @@
         <header class="top">
           <div>
             <h1>Playlists</h1>
-            <p class="count">{{ playlists().length === 1 ? '1 lista' : playlists().length + ' listas' }}</p>
+            <p class="count">{{ visiblePlaylists().length === 1 ? '1 lista' : visiblePlaylists().length + ' listas' }}</p>
           </div>
           <button type="button" class="plus" aria-label="Subir música" [disabled]="uploading()" (click)="openFilePicker()">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
           </button>
         </header>
+        <app-filter-panel
+          mode="catalog"
+          [catalog]="playlistFilters()"
+          [suggestions]="tagNames()"
+          namePlaceholder="Nombre de la lista"
+          (catalogChange)="onPlaylistFilters($event)"
+          (cleared)="clearPlaylistFilters()"
+          (suggestionsNeeded)="ensureTagCatalog()"
+        ></app-filter-panel>
         @if (playlistError()) {
           <p class="message message-error">{{ playlistError() }}</p>
         }
-        @if (playlists().length === 0) {
+        @if (visiblePlaylists().length === 0) {
           <div class="empty-block">
-            <p>Todavía no hay listas.</p>
+            <p>{{ playlistFiltersActive() ? 'Ninguna lista coincide con los filtros.' : 'Todavía no hay listas.' }}</p>
           </div>
         } @else {
           <div class="grid">
-            @for (playlist of playlists(); track playlist.id) {
+            @for (playlist of visiblePlaylists(); track playlist.id) {
               <article class="playlist-card">
                 <button type="button" class="card-open" (click)="openPlaylist(playlist.id)">
                   <span class="card-art" [style.background]="cover(playlist.name).background">{{ cover(playlist.name).initials }}</span>
@@ -178,7 +191,7 @@
                 @if (playlist.tags.length) {
                   <div class="chip-row">
                     @for (tag of playlist.tags; track tag) {
-                      <button type="button" class="tag-chip" [attr.aria-label]="'Filtrar por ' + tag" (click)="applyTag(tag)">{{ tag }}</button>
+                      <button type="button" class="tag-chip" [attr.aria-label]="'Filtrar por etiqueta de lista ' + tag" (click)="applyPlaylistTag(tag)">{{ tag }}</button>
                     }
                   </div>
                 }
@@ -202,6 +215,15 @@
             <p class="count">{{ label(artists().length, 'artista', 'artistas') }}</p>
           </div>
         </header>
+        <app-filter-panel
+          mode="catalog"
+          [catalog]="artistFilters()"
+          [suggestions]="tagNames()"
+          namePlaceholder="Nombre del artista"
+          (catalogChange)="onArtistFilters($event)"
+          (cleared)="clearArtistFilters()"
+          (suggestionsNeeded)="ensureTagCatalog()"
+        ></app-filter-panel>
         @if (artistsError()) {
           <p class="message message-error">{{ artistsError() }}</p>
         }
@@ -209,7 +231,7 @@
           <p class="hint">Cargando artistas…</p>
         } @else if (artists().length === 0) {
           <div class="empty-block">
-            <p>Todavía no hay artistas. Aparecen al guardar el artista de una canción.</p>
+            <p>{{ artistFiltersActive() ? 'Ningún artista coincide con los filtros.' : 'Todavía no hay artistas. Aparecen al guardar el artista de una canción.' }}</p>
           </div>
         } @else {
           <ul class="catalog">
@@ -225,7 +247,7 @@
                 @if (artist.tags.length) {
                   <div class="chip-row inset">
                     @for (tag of artist.tags; track tag) {
-                      <button type="button" class="tag-chip" [attr.aria-label]="'Filtrar por ' + tag" (click)="applyTag(tag)">{{ tag }}</button>
+                      <button type="button" class="tag-chip" [attr.aria-label]="'Filtrar por etiqueta de artista ' + tag" (click)="applyArtistTag(tag)">{{ tag }}</button>
                     }
                   </div>
                 }
@@ -283,24 +305,36 @@
             <h1>Biblioteca</h1>
             <p class="count">{{ trackCountLabel() }}</p>
           </div>
-          <button type="button" class="plus" aria-label="Subir música" [disabled]="uploading()" (click)="openFilePicker()">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
-          </button>
-        </header>
-        @if (tagFilter(); as tag) {
-          <div class="active-filter">
-            <button type="button" class="tag-chip current" [attr.aria-label]="'Quitar filtro ' + tag" (click)="clearTag()">
-              {{ tag }} <span aria-hidden="true">×</span>
+          <div class="top-actions">
+            <button type="button" class="btn btn-ghost shuffle-play" [disabled]="shownTracks().length === 0" (click)="playFilteredRandom()">Aleatorio</button>
+            <button type="button" class="plus" aria-label="Subir música" [disabled]="uploading()" (click)="openFilePicker()">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
             </button>
-            <span>Biblioteca filtrada</span>
           </div>
-        }
+        </header>
+        <label class="search">
+          <span class="visually-hidden">Buscar en la biblioteca</span>
+          <input
+            type="search"
+            [value]="query()"
+            placeholder="Buscar título, título secundario, artista, álbum o archivo"
+            (input)="onSearchInput($event)"
+          >
+        </label>
+        <app-filter-panel
+          mode="library"
+          [library]="libraryFilters()"
+          [suggestions]="tagNames()"
+          (libraryChange)="onLibraryFilters($event)"
+          (cleared)="clearLibraryFilters()"
+          (suggestionsNeeded)="ensureTagCatalog()"
+        ></app-filter-panel>
         <app-audio-list
           [entries]="homeEntries()"
           [selectedId]="player.current()?.id ?? -1"
-          [loading]="firstLoad() || (searching() && !!tagFilter() && tagged().length === 0)"
+          [loading]="firstLoad() || (searching() && filtersActive() && results().length === 0)"
           [errorMessage]="libraryError()"
-          [emptyMessage]="tagFilter() ? 'Ninguna canción con la etiqueta «' + tagFilter() + '».' : 'Tu biblioteca está vacía. Sube música con el botón +.'"
+          [emptyMessage]="filtersActive() ? 'Nada coincide con los filtros.' : 'Tu biblioteca está vacía. Sube música con el botón +.'"
           mode="library"
           (selected)="playVisible($event)"
           (edit)="openEdit($event)"
