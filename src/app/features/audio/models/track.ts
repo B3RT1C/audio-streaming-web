@@ -1,5 +1,5 @@
 import { asNumber, asString, isRecord } from '../utils/json';
-import { normalizeTagNames } from './tags';
+import { AssignedTag, assignedNames, normalizeAssignedTags, TagWrite } from '../utils/tag-assignment';
 
 /**
  * Catalog row. 0.1 fields stay. 0.2 adds title, artist, album, duration and
@@ -22,6 +22,8 @@ export interface Track {
   durationSeconds: number | null;
   trackNumber: number | null;
   tags: string[];
+  /** Typed tags when the API sends them. Plain names stay free tags. */
+  tagItems?: AssignedTag[];
 }
 
 /**
@@ -39,7 +41,10 @@ export interface TrackMetadataPatch {
 
 export interface TrackEdit {
   patch: TrackMetadataPatch;
+  /** Editable tag names. Derived tags are not included. */
   tags: string[];
+  /** Typed replacement. Free tags are strings; the rest are `{ type, name }`. */
+  assignments?: TagWrite[];
 }
 
 export interface TrackRow {
@@ -52,6 +57,8 @@ export const API_PATHS = {
   playlists: '/playlists',
   artists: '/artists',
   tags: '/tags',
+  tagTypes: '/tag-types',
+  filterSuggest: '/filter/suggest',
   syncStatus: '/sync/status',
 } as const;
 
@@ -69,6 +76,7 @@ export function normalizeTrack(raw: unknown): Track | null {
     return null;
   }
   const name = asString(raw['name']) ?? asString(raw['title']) ?? '';
+  const tagItems = normalizeAssignedTags(raw['tags']);
   return {
     id,
     path: asString(raw['path']) ?? '',
@@ -83,7 +91,8 @@ export function normalizeTrack(raw: unknown): Track | null {
     album: asString(raw['album']),
     durationSeconds: asNumber(raw['durationSeconds']),
     trackNumber: asNumber(raw['trackNumber']),
-    tags: normalizeTagNames(raw['tags']),
+    tags: assignedNames(tagItems),
+    tagItems,
   };
 }
 

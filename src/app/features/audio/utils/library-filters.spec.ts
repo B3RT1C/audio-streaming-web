@@ -1,3 +1,4 @@
+import { parseFilterToken } from './filter-tokens';
 import {
   audioSearchParams,
   catalogSearchParams,
@@ -87,6 +88,63 @@ describe('library filters', () => {
     } finally {
       history.replaceState(history.state, '', previous);
     }
+  });
+
+  it('round-trips unified tokens with and without accents', () => {
+    const tokens = [
+      parseFilterToken('genero:Rock')!,
+      parseFilterToken('#gym')!,
+      parseFilterToken('gym')!,
+      parseFilterToken('ano:2010-2015')!,
+      parseFilterToken('álbum:Azul')!,
+      parseFilterToken('mood:gym')!,
+      parseFilterToken('artista:Ana López')!,
+    ];
+    const params = audioSearchParams({ ...emptyLibraryFilters(), q: 'luna', tokens });
+    expect(params.get('q')).toBe('luna');
+    expect(params.getAll('f')).toEqual([
+      'género:Rock',
+      '#gym',
+      'año:2010-2015',
+      'álbum:Azul',
+      'mood:gym',
+      'artista:Ana López',
+    ]);
+
+    const state = {
+      ...emptyViewState(),
+      view: 'home' as const,
+      library: { ...emptyLibraryFilters(), q: 'luna', tokens },
+    };
+    const search = viewToSearch(state);
+    const restored = viewFromSearch(search);
+    expect(restored.library.q).toBe('luna');
+    expect(restored.library.tokens).toEqual([
+      { type: 'genre', value: 'Rock' },
+      { type: 'free', value: 'gym' },
+      { type: 'year', value: '2010-2015' },
+      { type: 'album', value: 'Azul' },
+      { type: 'mood', value: 'gym' },
+      { type: 'artist', value: 'Ana López' },
+    ]);
+    expect(viewToSearch(restored)).toBe(search);
+
+    const plain = viewFromSearch('f=genero:rock&f=ano:2010-2015&f=Live');
+    expect(plain.library.tokens).toEqual([
+      { type: 'genre', value: 'rock' },
+      { type: 'year', value: '2010-2015' },
+      { type: 'free', value: 'Live' },
+    ]);
+    expect(viewToSearch(plain)).toContain('f=g%C3%A9nero%3Arock');
+    expect(viewToSearch(plain)).toContain('f=a%C3%B1o%3A2010-2015');
+    expect(viewToSearch(plain)).toContain('f=%23Live');
+
+    const [tokenChip] = libraryChips(plain.library).filter((chip) => chip.key === 'f');
+    expect(withoutLibraryChip(plain.library, tokenChip).tokens).toEqual([
+      { type: 'year', value: '2010-2015' },
+      { type: 'free', value: 'Live' },
+    ]);
+    expect(libraryTextOnlyChange(plain.library, { ...plain.library, tokens: [] })).toBe(false);
   });
 
   it('removes one chip and tells text edits apart from tag edits', () => {

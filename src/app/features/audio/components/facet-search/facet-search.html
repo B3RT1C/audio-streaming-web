@@ -1,0 +1,61 @@
+<div class="facet">
+  <label class="facet-label">
+    <span class="visually-hidden">Buscar en la biblioteca</span>
+    <div class="facet-box">
+      @for (token of tokens(); track chipLabel(token)) {
+        <button
+          type="button"
+          class="facet-chip"
+          [style.--tone]="chipColor(token.type)"
+          [attr.aria-label]="'Quitar ' + chipLabel(token)"
+          (click)="remove(token)"
+        >
+          <span>{{ chipLabel(token) }}</span>
+          <span aria-hidden="true">×</span>
+        </button>
+      }
+      <input
+        type="search"
+        role="combobox"
+        autocomplete="off"
+        [value]="draft()"
+        [placeholder]="tokens().length ? 'Añadir filtro' : placeholder()"
+        [attr.aria-expanded]="open() && groups().length > 0"
+        aria-autocomplete="list"
+        (input)="onInput($event)"
+        (focus)="onFocus()"
+        (blur)="onBlur()"
+        (keydown)="onKey($event)"
+      >
+    </div>
+  </label>
+  @if (open() && groups().length) {
+    <div class="facet-menu" role="listbox" aria-label="Sugerencias de filtro">
+      @for (group of groups(); track group.type) {
+        <p class="facet-group">
+          <span class="swatch" [style.background]="group.color" aria-hidden="true"></span>
+          {{ group.label }}
+        </p>
+        @for (item of group.rows; track item.index) {
+          <button
+            type="button"
+            role="option"
+            class="facet-option"
+            [class.active]="active() === item.index"
+            [attr.aria-selected]="active() === item.index"
+            (mousedown)="$event.preventDefault(); pick(item.row)"
+          >
+            @if (item.row.kind === 'prefix') {
+              <span>{{ item.row.insert === '#' ? '#' : item.row.insert + ':' }}</span>
+            } @else {
+              <span>{{ item.row.type === 'free' ? '#' + item.row.value : item.row.value }}</span>
+              @if (item.row.count) {
+                <span class="facet-count">{{ item.row.count }}</span>
+              }
+            }
+          </button>
+        }
+      }
+    </div>
+  }
+</div>

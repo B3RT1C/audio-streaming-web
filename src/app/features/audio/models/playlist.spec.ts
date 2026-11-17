@@ -24,7 +24,7 @@ describe('normalizePlaylist', () => {
       },
     ]);
 
-    expect(playlists).toEqual([{ id: 3, name: 'Noche', itemCount: 4, items: null, tags: [] }]);
+    expect(playlists).toEqual([{ id: 3, name: 'Noche', itemCount: 4, items: null, tags: [], tagItems: [] }]);
   });
 
   it('sorts detail items by position even when there are gaps, and keeps the nested audio', () => {
@@ -60,6 +60,7 @@ describe('normalizePlaylist', () => {
       itemCount: 0,
       items: [],
       tags: [],
+      tagItems: [],
     });
   });
 

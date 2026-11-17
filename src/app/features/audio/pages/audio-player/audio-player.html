@@ -118,15 +118,15 @@
             </button>
           </div>
         </header>
-        <label class="search">
-          <span class="visually-hidden">Buscar</span>
-          <input
-            type="search"
-            [value]="query()"
-            placeholder="Buscar título, título secundario, artista, álbum o archivo"
-            (input)="onSearchInput($event)"
-          >
-        </label>
+        <app-facet-search
+          [query]="query()"
+          [tokens]="facetTokens()"
+          [suggestions]="facetSuggestions()"
+          [types]="tagTypes()"
+          (queryChange)="onFacetQuery($event)"
+          (committed)="onFacetCommit($event)"
+          (suggest)="onFacetSuggest($event)"
+        ></app-facet-search>
         <app-filter-panel
           mode="library"
           [library]="libraryFilters()"
@@ -270,33 +270,19 @@
             <p class="count">{{ label(tags().length, 'etiqueta', 'etiquetas') }}</p>
           </div>
         </header>
-        @if (tagsError()) {
-          <p class="message message-error">{{ tagsError() }}</p>
-        }
-        @if (tagsLoading() && tags().length === 0) {
+        @if (tagsLoading() && tags().length === 0 && tagTypes().length === 0) {
           <p class="hint">Cargando etiquetas…</p>
-        } @else if (tags().length === 0) {
-          <div class="empty-block">
-            <p>Todavía no hay etiquetas. Añádelas al editar una canción, un artista o una lista.</p>
-          </div>
-        } @else {
-          <ul class="catalog">
-            @for (tag of tags(); track tag.id) {
-              <li>
-                <button type="button" class="catalog-main tag-row" (click)="applyTag(tag.name)">
-                  <span class="meta">
-                    <span class="title">{{ tag.name }}</span>
-                    <span class="sub">
-                      {{ label(tag.audioCount, 'canción', 'canciones') }}
-                      · {{ label(tag.artistCount, 'artista', 'artistas') }}
-                      · {{ label(tag.playlistCount, 'lista', 'listas') }}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            }
-          </ul>
         }
+        <app-tag-types-view
+          [types]="tagTypes()"
+          [tags]="tags()"
+          [busy]="tagsLoading()"
+          [error]="tagsError()"
+          (openTag)="openTag($event)"
+          (createType)="createTagType($event)"
+          (renameType)="renameTagType($event)"
+          (deleteType)="deleteTagType($event)"
+        ></app-tag-types-view>
       </section>
     } @else {
       <section class="view">
@@ -312,15 +298,15 @@
             </button>
           </div>
         </header>
-        <label class="search">
-          <span class="visually-hidden">Buscar en la biblioteca</span>
-          <input
-            type="search"
-            [value]="query()"
-            placeholder="Buscar título, título secundario, artista, álbum o archivo"
-            (input)="onSearchInput($event)"
-          >
-        </label>
+        <app-facet-search
+          [query]="query()"
+          [tokens]="facetTokens()"
+          [suggestions]="facetSuggestions()"
+          [types]="tagTypes()"
+          (queryChange)="onFacetQuery($event)"
+          (committed)="onFacetCommit($event)"
+          (suggest)="onFacetSuggest($event)"
+        ></app-facet-search>
         <app-filter-panel
           mode="library"
           [library]="libraryFilters()"
@@ -397,6 +383,8 @@
     [track]="track"
     [busy]="savingMeta()"
     [suggestions]="tagNames()"
+    [catalog]="tags()"
+    [types]="tagTypes()"
     (saved)="saveMetadata($event)"
     (cancelled)="editing.set(null)"
   ></app-metadata-dialog>
@@ -406,7 +394,10 @@
   <app-tags-dialog
     [title]="target.title"
     [tags]="target.tags"
+    [assigned]="target.assigned"
     [suggestions]="tagNames()"
+    [catalog]="tags()"
+    [types]="tagTypes()"
     [busy]="savingTags()"
     (saved)="saveTags($event)"
     (cancelled)="editingTags.set(null)"

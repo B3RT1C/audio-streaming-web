@@ -28,11 +28,13 @@
       </label>
       <div class="field">
         <span class="field-label">Etiquetas</span>
-        <app-tag-editor
-          [tags]="tags()"
+        <app-typed-tag-editor
+          [tags]="assigned()"
           [suggestions]="suggestions()"
-          (tagsChange)="tags.set($event)"
-        ></app-tag-editor>
+          [catalog]="catalog()"
+          [types]="types()"
+          (tagsChange)="assigned.set($event)"
+        ></app-typed-tag-editor>
       </div>
       @if (formError()) {
         <p class="message message-error">{{ formError() }}</p>

@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 import { filter, map } from 'rxjs/operators';
 import { RuntimeConfigService } from '../../../core/runtime-config.service';
 import { API_PATHS, normalizeTrack, normalizeTrackList, Track, TrackMetadataPatch } from '../models/track';
+import { TagWrite } from '../utils/tag-assignment';
 import {
   audioSearchParams,
   emptyLibraryFilters,
@@ -57,10 +58,13 @@ export class AudioService {
       .pipe(map((body) => normalizeTrack(body)));
   }
 
-  /** Replaces the track's tags. An empty array clears them. Unknown names are created. */
-  replaceTags(id: number, tags: string[]): Observable<Track | null> {
+  /**
+   * Replaces the editable tags. A string is a free tag; `{ type, name }` assigns a type.
+   * Derived tags are omitted by the caller and stay on the server.
+   */
+  replaceTags(id: number, tags: readonly TagWrite[]): Observable<Track | null> {
     return this.http
-      .put<unknown>(`${this.audiosUrl()}/${id}/tags`, { tags })
+      .put<unknown>(`${this.audiosUrl()}/${id}/tags`, { tags: [...tags] })
       .pipe(map((body) => normalizeTrack(body)));
   }
 
@@ -106,6 +110,7 @@ function normalizeFilters(filters: LibraryFilters): LibraryFilters {
     tags: uniqueTags(filters.tags),
     artistTags: uniqueTags(filters.artistTags),
     playlistTags: uniqueTags(filters.playlistTags),
+    tokens: filters.tokens ?? [],
   };
 }
 

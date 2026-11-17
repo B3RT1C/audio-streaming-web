@@ -209,19 +209,21 @@ describe('AudioPlayer', () => {
   it('filters by a tag and combines that filter with the current search', async () => {
     fixture.componentInstance.showSection('tags');
     http.expectOne((request) => request.method === 'GET' && request.url.endsWith('/tags')).flush([
-      { id: 1, name: 'Live', audioCount: 4, artistCount: 1, playlistCount: 2 },
+      { id: 1, name: 'Live', type: 'free', readOnly: false, audioCount: 4, artistCount: 1, playlistCount: 2 },
+    ]);
+    http.expectOne((request) => request.method === 'GET' && request.url.endsWith('/tag-types')).flush([
+      { id: 6, key: 'free', name: 'Libre', system: true },
     ]);
     fixture.detectChanges();
     const text = fixture.nativeElement.textContent as string;
-    expect(text).toContain('4 canciones');
-    expect(text).toContain('1 artista');
-    expect(text).toContain('2 listas');
+    expect(text).toContain('Live');
+    expect(text).toContain('4');
 
     fixture.componentInstance.query.set('noche');
     const row = fixture.nativeElement.querySelector('.tag-row') as HTMLButtonElement;
     row.click();
     http
-      .expectOne((request) => request.params.get('tag') === 'Live' && request.params.get('q') === 'noche')
+      .expectOne((request) => request.params.get('f') === '#Live' && request.params.get('q') === 'noche')
       .flush([
         {
           id: 4,
@@ -245,7 +247,7 @@ describe('AudioPlayer', () => {
     fixture.componentInstance.onSearchInput({ target: { value: 'luna' } } as unknown as Event);
     await new Promise((resolve) => setTimeout(resolve, 350));
     const searched = http.expectOne(
-      (request) => request.params.get('q') === 'luna' && request.params.get('tag') === 'Live',
+      (request) => request.params.get('q') === 'luna' && request.params.get('f') === '#Live',
     );
     searched.flush([]);
   });
@@ -268,6 +270,7 @@ describe('AudioPlayer', () => {
     http.expectOne((request) => request.method === 'GET' && request.url.endsWith('/tags')).flush([
       { id: 1, name: 'Live', audioCount: 4, artistCount: 1, playlistCount: 0 },
     ]);
+    http.expectOne((request) => request.method === 'GET' && request.url.endsWith('/tag-types')).flush([]);
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Etiquetas de Luna');
 
@@ -278,6 +281,7 @@ describe('AudioPlayer', () => {
     http.expectOne((request) => request.method === 'GET' && request.url.endsWith('/tags')).flush([
       { id: 2, name: 'Pop', audioCount: 0, artistCount: 1, playlistCount: 0 },
     ]);
+    http.expectOne((request) => request.method === 'GET' && request.url.endsWith('/tag-types')).flush([]);
     fixture.detectChanges();
     expect(fixture.componentInstance.artists()[0]?.tags).toEqual(['Pop']);
   });

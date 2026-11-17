@@ -1,5 +1,6 @@
 import { Component, computed, input, output, signal } from '@angular/core';
 import { TagEditor } from '../tag-editor/tag-editor';
+import { typeColor } from '../../utils/filter-tokens';
 import {
   emptyLibraryFilters,
   emptyNameTagFilters,
@@ -46,6 +47,10 @@ export class FilterPanel {
     const filters = this.library();
     return this.mode() === 'library' && Boolean(filters.q.trim()) && this.chips().length > 1;
   });
+
+  tone(type: string): string {
+    return typeColor(type);
+  }
 
   toggle(): void {
     const next = !this.expanded();

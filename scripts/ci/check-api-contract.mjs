@@ -1,5 +1,5 @@
 /**
- * Validates web API paths against the 0.4 client contract.
+ * Validates web API paths against the 0.4.1 client contract.
  * Run: node scripts/ci/check-api-contract.mjs
  */
 import fs from 'node:fs';
@@ -17,6 +17,8 @@ const metadataDialogPath = path.join(root, 'src/app/features/audio/components/me
 const apiErrorPath = path.join(root, 'src/app/features/audio/utils/api-error.ts');
 const playerPagePath = path.join(root, 'src/app/features/audio/pages/audio-player/audio-player.ts');
 const filtersPath = path.join(root, 'src/app/features/audio/utils/library-filters.ts');
+const tokensPath = path.join(root, 'src/app/features/audio/utils/filter-tokens.ts');
+const assignmentPath = path.join(root, 'src/app/features/audio/utils/tag-assignment.ts');
 const originPath = path.join(root, 'src/app/core/api-origin.ts');
 const prodEnvPath = path.join(root, 'src/environments/environment.prod.ts');
 const configPath = path.join(root, 'public/config.json');
@@ -43,8 +45,16 @@ if (!artistsMatch || artistsMatch[1] !== '/artists') {
 if (!tagsMatch || tagsMatch[1] !== '/tags') {
   fail(`API_PATHS.tags must be /tags, got ${tagsMatch?.[1]}`);
 }
+const tagTypesMatch = track.match(/tagTypes:\s*'(\/[^']+)'/);
+const suggestMatch = track.match(/filterSuggest:\s*'(\/[^']+)'/);
+if (!tagTypesMatch || tagTypesMatch[1] !== '/tag-types') {
+  fail(`API_PATHS.tagTypes must be /tag-types, got ${tagTypesMatch?.[1]}`);
+}
+if (!suggestMatch || suggestMatch[1] !== '/filter/suggest') {
+  fail(`API_PATHS.filterSuggest must be /filter/suggest, got ${suggestMatch?.[1]}`);
+}
 if (!track.includes('secondaryTitle')) fail('track model must keep secondaryTitle');
-if (!track.includes('normalizeTagNames')) fail('track model must read tags');
+if (!track.includes('normalizeAssignedTags')) fail('track model must read tags');
 
 for (const [label, filePath] of [
   ['audio-service', audioServicePath],
@@ -74,8 +84,17 @@ if (!audioService.includes('listShuffled')) fail('GET /audios must support shuff
 if (!audioService.includes('/tags')) fail('audio service must call PUT /audios/{id}/tags');
 
 const filters = fs.readFileSync(filtersPath, 'utf8');
-for (const key of ['q', 'title', 'artist', 'tag', 'artistTag', 'playlistTag', 'shuffle', 'seed']) {
+for (const key of ['q', 'title', 'artist', 'tag', 'artistTag', 'playlistTag', 'shuffle', 'seed', 'f']) {
   if (!filters.includes(`'${key}'`)) fail(`library filters must send ${key}`);
+}
+const tokens = fs.readFileSync(tokensPath, 'utf8');
+for (const prefix of ['artista', 'género', 'álbum', 'año', 'idioma', 'playlist']) {
+  if (!tokens.includes(`'${prefix}'`)) fail(`filter tokens must serialize ${prefix}`);
+}
+if (!tokens.includes("return `#${value}`")) fail('free tags must serialize with a hash');
+const assignment = fs.readFileSync(assignmentPath, 'utf8');
+if (!assignment.includes('isDerivedType') || !assignment.includes('assignmentPayload')) {
+  fail('tag assignment must omit derived tags from PUT bodies');
 }
 if (!filters.includes('viewToSearch') || !filters.includes('viewFromSearch')) {
   fail('filters must round-trip through the page query string');
@@ -104,6 +123,13 @@ if (!catalogService.includes('/tags')) fail('catalog service must call PUT /arti
 if (!catalogService.includes('catalogSearchParams')) {
   fail('GET /artists must send q and repeated tag');
 }
+if (!catalogService.includes('API_PATHS.tagTypes')) fail('catalog service must call /tag-types');
+if (!catalogService.includes('suggestFilters') || !catalogService.includes('API_PATHS.filterSuggest')) {
+  fail('catalog service must call GET /filter/suggest');
+}
+if (!catalogService.includes(".set('prefix'") || !catalogService.includes(".set('q'")) {
+  fail('GET /filter/suggest must send prefix and q');
+}
 
 const playlistModel = fs.readFileSync(playlistModelPath, 'utf8');
 if (!playlistModel.includes('itemCount')) fail('playlist model must keep itemCount from list summaries');
@@ -127,5 +153,5 @@ if (!playerPage.includes('playShuffled')) {
 }
 
 console.log(
-  'CONTRACT OK: web client matches backend 0.4.0 (/audios filters, shuffle, /playlists, /artists, /tags)',
+  'CONTRACT OK: web client matches backend 0.4.1 (/audios?f, /filter/suggest, /tag-types, /playlists, /artists, /tags)',
 );
