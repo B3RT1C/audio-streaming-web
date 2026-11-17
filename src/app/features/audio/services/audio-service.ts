@@ -23,9 +23,20 @@ export class AudioService {
   private http = inject(HttpClient);
   private config = inject(RuntimeConfigService);
 
-  list(query = ''): Observable<Track[]> {
+  /**
+   * `q` and `tag` combine: a track must match both. Blank values are omitted
+   * so the request stays a plain GET /audios.
+   */
+  list(query = '', tag = ''): Observable<Track[]> {
+    let params = new HttpParams();
     const q = query.trim();
-    const params = q ? new HttpParams().set('q', q) : undefined;
+    const tagName = tag.trim();
+    if (q) {
+      params = params.set('q', q);
+    }
+    if (tagName) {
+      params = params.set('tag', tagName);
+    }
     return this.http
       .get<unknown>(this.audiosUrl(), { params })
       .pipe(map((body) => normalizeTrackList(body)));
@@ -34,6 +45,13 @@ export class AudioService {
   updateMetadata(id: number, patch: TrackMetadataPatch): Observable<Track | null> {
     return this.http
       .patch<unknown>(`${this.audiosUrl()}/${id}`, patch)
+      .pipe(map((body) => normalizeTrack(body)));
+  }
+
+  /** Replaces the track's tags. An empty array clears them. Unknown names are created. */
+  replaceTags(id: number, tags: string[]): Observable<Track | null> {
+    return this.http
+      .put<unknown>(`${this.audiosUrl()}/${id}/tags`, { tags })
       .pipe(map((body) => normalizeTrack(body)));
   }
 

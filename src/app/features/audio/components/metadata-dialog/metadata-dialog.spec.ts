@@ -9,10 +9,12 @@ describe('MetadataDialog', () => {
     path: '',
     extension: 'mp3',
     title: 'Viejo',
+    secondaryTitle: 'Old',
     artist: 'Sol',
     album: 'Noche',
     durationSeconds: 10,
     trackNumber: 4,
+    tags: ['Pop'],
   };
 
   let fixture: ComponentFixture<MetadataDialog>;
@@ -35,8 +37,28 @@ describe('MetadataDialog', () => {
     component.trackNumber.set('');
     component.save();
     expect(saved).toEqual([
-      { title: 'Nuevo', artist: 'Sol', album: 'Noche', trackNumber: null },
+      {
+        patch: {
+          title: 'Nuevo',
+          secondaryTitle: 'Old',
+          artist: 'Sol',
+          album: 'Noche',
+          trackNumber: null,
+        },
+        tags: ['Pop'],
+      },
     ]);
+  });
+
+  it('omits an unchanged title and clears a blank secondary title', () => {
+    const saved: { patch: { title?: string; secondaryTitle?: string | null }; tags: string[] }[] = [];
+    component.saved.subscribe((edit) => saved.push(edit));
+    component.secondary.set('   ');
+    component.tags.set([]);
+    component.save();
+    expect(saved[0]?.patch.title).toBeUndefined();
+    expect(saved[0]?.patch.secondaryTitle).toBeNull();
+    expect(saved[0]?.tags).toEqual([]);
   });
 
   it('rejects a track number that is not a positive integer', () => {

@@ -1,8 +1,10 @@
 import { asNumber, asString, isRecord } from '../utils/json';
+import { normalizeTagNames } from './tags';
 
 /**
- * Catalog row. 0.1 fields stay, and 0.2 adds title, artist, album,
- * durationSeconds and trackNumber. Adjust `normalizeTrack` if the wire names move.
+ * Catalog row. 0.1 fields stay. 0.2 adds title, artist, album, duration and
+ * track number. 0.3 adds secondaryTitle and tags. Adjust `normalizeTrack` if
+ * the wire names move.
  */
 export interface Track {
   id: number;
@@ -13,18 +15,30 @@ export interface Track {
   checksum?: string;
   updatedAt?: string;
   title: string | null;
+  secondaryTitle: string | null;
   artist: string | null;
   album: string | null;
   durationSeconds: number | null;
   trackNumber: number | null;
+  tags: string[];
 }
 
-/** Body of PATCH /audios/{id}. Null trackNumber clears the value. */
+/**
+ * Body of PATCH /audios/{id}. Omitted fields stay as they are.
+ * `secondaryTitle: null` (or a blank string, which the client sends as null) clears it.
+ * Tags are not part of this body: use PUT /audios/{id}/tags.
+ */
 export interface TrackMetadataPatch {
-  title: string;
-  artist: string;
-  album: string;
-  trackNumber: number | null;
+  title?: string;
+  secondaryTitle?: string | null;
+  artist?: string;
+  album?: string;
+  trackNumber?: number | null;
+}
+
+export interface TrackEdit {
+  patch: TrackMetadataPatch;
+  tags: string[];
 }
 
 export interface TrackRow {
@@ -35,6 +49,8 @@ export interface TrackRow {
 export const API_PATHS = {
   audios: '/audios',
   playlists: '/playlists',
+  artists: '/artists',
+  tags: '/tags',
   syncStatus: '/sync/status',
 } as const;
 
@@ -61,10 +77,12 @@ export function normalizeTrack(raw: unknown): Track | null {
     checksum: asString(raw['checksum']) ?? undefined,
     updatedAt: asString(raw['updatedAt']) ?? undefined,
     title: asString(raw['title']),
+    secondaryTitle: blankToNull(asString(raw['secondaryTitle'])),
     artist: asString(raw['artist']),
     album: asString(raw['album']),
     durationSeconds: asNumber(raw['durationSeconds']),
     trackNumber: asNumber(raw['trackNumber']),
+    tags: normalizeTagNames(raw['tags']),
   };
 }
 
@@ -80,6 +98,10 @@ export function trackTitle(track: Track | null | undefined): string {
   return name || 'Sin título';
 }
 
+export function trackSecondary(track: Track | null | undefined): string {
+  return track?.secondaryTitle?.trim() ?? '';
+}
+
 export function trackSubtitle(track: Track | null | undefined): string {
   if (!track) {
     return '';
@@ -90,4 +112,12 @@ export function trackSubtitle(track: Track | null | undefined): string {
     return `${artist} · ${album}`;
   }
   return artist || album;
+}
+
+function blankToNull(value: string | null): string | null {
+  if (value == null) {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
 }

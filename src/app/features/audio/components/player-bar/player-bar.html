@@ -2,7 +2,12 @@
   <span class="mini-progress" aria-hidden="true"><span [style.width.%]="progress()"></span></span>
   <span class="art" [style.background]="art().background" aria-hidden="true">{{ art().initials }}</span>
   <span class="now">
-    <span class="title">{{ player.current() ? titleOf(player.current()) : 'Nada en reproducción' }}</span>
+    <span class="title-line">
+      <span class="title">{{ player.current() ? titleOf(player.current()) : 'Nada en reproducción' }}</span>
+      @if (player.current() && secondaryOf(player.current())) {
+        <span class="alt">{{ secondaryOf(player.current()) }}</span>
+      }
+    </span>
     <span class="sub">{{ player.current() ? (subtitleOf(player.current()) || 'Biblioteca') : 'Elige una canción' }}</span>
   </span>
   <span
@@ -26,7 +31,12 @@
   <button type="button" class="desk-id" (click)="open()">
     <span class="art" [style.background]="art().background" aria-hidden="true">{{ art().initials }}</span>
     <span class="now">
-      <span class="title">{{ player.current() ? titleOf(player.current()) : 'Nada en reproducción' }}</span>
+      <span class="title-line">
+        <span class="title">{{ player.current() ? titleOf(player.current()) : 'Nada en reproducción' }}</span>
+        @if (player.current() && secondaryOf(player.current())) {
+          <span class="alt">{{ secondaryOf(player.current()) }}</span>
+        }
+      </span>
       <span class="sub">{{ player.current() ? (subtitleOf(player.current()) || 'Biblioteca') : 'Elige una canción' }}</span>
     </span>
   </button>
@@ -75,6 +85,9 @@
     <div class="stage-art" [style.background]="art().background" aria-hidden="true">{{ art().initials }}</div>
     <div class="full-copy">
       <h2>{{ player.current() ? titleOf(player.current()) : 'Nada en reproducción' }}</h2>
+      @if (player.current() && secondaryOf(player.current())) {
+        <p class="alt">{{ secondaryOf(player.current()) }}</p>
+      }
       <p>{{ player.current() ? (subtitleOf(player.current()) || 'Biblioteca') : 'Elige una canción' }}</p>
     </div>
     <label class="seek seek-lg">
@@ -110,16 +123,21 @@
       @if (player.playOrder().length === 0) {
         <p class="queue-empty">La cola está vacía.</p>
       } @else {
-        <ol>
-          @for (item of player.playOrder(); track item.track.id) {
-            <li>
-              <button type="button" [class.current]="item.current" (click)="player.jumpTo(item.index)">
-                <span>{{ titleOf(item.track) }}</span>
-                <span>{{ subtitleOf(item.track) }}</span>
-              </button>
-            </li>
-          }
-        </ol>
+        <div class="queue-scroll" (scroll)="onQueueScroll($event)">
+          <ol [style.paddingTop.px]="queuePad().top" [style.paddingBottom.px]="queuePad().bottom">
+            @for (item of visibleQueue(); track item.track.id) {
+              <li>
+                <button type="button" [class.current]="item.current" (click)="player.jumpTo(item.index)">
+                  <span class="q-title">{{ titleOf(item.track) }}</span>
+                  @if (secondaryOf(item.track)) {
+                    <span class="q-alt">{{ secondaryOf(item.track) }}</span>
+                  }
+                  <span class="q-sub">{{ subtitleOf(item.track) }}</span>
+                </button>
+              </li>
+            }
+          </ol>
+        </div>
       }
     </div>
   </section>

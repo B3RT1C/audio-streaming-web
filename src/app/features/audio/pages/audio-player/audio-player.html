@@ -10,6 +10,8 @@
       <button type="button" [class.active]="section() === 'home' && !activePlaylist()" (click)="showLibrary()">Inicio</button>
       <button type="button" [class.active]="section() === 'search'" (click)="showSection('search')">Buscar</button>
       <button type="button" [class.active]="section() === 'playlists' || !!activePlaylist()" (click)="showSection('playlists')">Playlists</button>
+      <button type="button" [class.active]="section() === 'artists'" (click)="showSection('artists')">Artistas</button>
+      <button type="button" [class.active]="section() === 'tags'" (click)="showSection('tags')">Etiquetas</button>
     </nav>
     <div class="side-lists">
       @for (playlist of playlists(); track playlist.id) {
@@ -64,6 +66,13 @@
               <p class="eyebrow">Playlist</p>
               <h1>{{ playlist.name }}</h1>
               <p class="count">{{ trackCountLabel() }}</p>
+              @if (playlist.tags.length) {
+                <div class="chip-row">
+                  @for (tag of playlist.tags; track tag) {
+                    <button type="button" class="tag-chip" [attr.aria-label]="'Filtrar por ' + tag" (click)="applyTag(tag)">{{ tag }}</button>
+                  }
+                </div>
+              }
             </div>
           </div>
           <div class="hero-actions">
@@ -77,6 +86,7 @@
               <button type="button" class="menu-backdrop" aria-label="Cerrar menú" (click)="playlistMenu.set(false)"></button>
               <div class="sheet" role="menu">
                 <button type="button" role="menuitem" (click)="playlistMenu.set(false); startRename()">Renombrar</button>
+                <button type="button" role="menuitem" (click)="editPlaylistTags()">Etiquetas</button>
                 <button type="button" role="menuitem" class="danger" (click)="playlistMenu.set(false); deletePlaylist()">Borrar lista</button>
               </div>
             }
@@ -89,10 +99,11 @@
           emptyMessage="Esta lista está vacía. Añade canciones desde Inicio."
           mode="playlist"
           (selected)="playVisible($event)"
-          (edit)="editing.set($event)"
+          (edit)="openEdit($event)"
           (remove)="removeFromPlaylist($event)"
           (move)="moveEntry($event)"
           (reordered)="reorderPlaylist($event)"
+          (tagSelected)="applyTag($event)"
         ></app-audio-list>
       </section>
     } @else if (section() === 'search') {
@@ -108,10 +119,18 @@
           <input
             type="search"
             [value]="query()"
-            placeholder="Buscar título, artista, álbum o archivo"
+            placeholder="Buscar título, título secundario, artista, álbum o archivo"
             (input)="onSearchInput($event)"
           >
         </label>
+        @if (tagFilter(); as tag) {
+          <div class="active-filter">
+            <button type="button" class="tag-chip current" [attr.aria-label]="'Quitar filtro ' + tag" (click)="clearTag()">
+              {{ tag }} <span aria-hidden="true">×</span>
+            </button>
+            <span>Se combina con la búsqueda</span>
+          </div>
+        }
         @if (searching() && !firstLoad()) {
           <p class="hint">Buscando…</p>
         }
@@ -123,9 +142,10 @@
           emptyMessage="Nada coincide con la búsqueda."
           mode="library"
           (selected)="playVisible($event)"
-          (edit)="editing.set($event)"
+          (edit)="openEdit($event)"
           (add)="addingTrack.set($event)"
           (delete)="deleteTrack($event)"
+          (tagSelected)="applyTag($event)"
         ></app-audio-list>
       </section>
     } @else if (section() === 'playlists') {
@@ -149,11 +169,20 @@
         } @else {
           <div class="grid">
             @for (playlist of playlists(); track playlist.id) {
-              <button type="button" class="playlist-card playlist-chip" (click)="openPlaylist(playlist.id)">
-                <span class="card-art" [style.background]="cover(playlist.name).background">{{ cover(playlist.name).initials }}</span>
-                <span class="card-name">{{ playlist.name }}</span>
-                <span class="card-meta">{{ playlist.itemCount }} {{ playlist.itemCount === 1 ? 'canción' : 'canciones' }}</span>
-              </button>
+              <article class="playlist-card">
+                <button type="button" class="card-open" (click)="openPlaylist(playlist.id)">
+                  <span class="card-art" [style.background]="cover(playlist.name).background">{{ cover(playlist.name).initials }}</span>
+                  <span class="card-name">{{ playlist.name }}</span>
+                  <span class="card-meta">{{ playlist.itemCount }} {{ playlist.itemCount === 1 ? 'canción' : 'canciones' }}</span>
+                </button>
+                @if (playlist.tags.length) {
+                  <div class="chip-row">
+                    @for (tag of playlist.tags; track tag) {
+                      <button type="button" class="tag-chip" [attr.aria-label]="'Filtrar por ' + tag" (click)="applyTag(tag)">{{ tag }}</button>
+                    }
+                  </div>
+                }
+              </article>
             }
           </div>
         }
@@ -164,6 +193,88 @@
           </label>
           <button type="submit" class="btn btn-primary" [disabled]="creatingPlaylist() || !newPlaylistName().trim()">Crear</button>
         </form>
+      </section>
+    } @else if (section() === 'artists') {
+      <section class="view">
+        <header class="top">
+          <div>
+            <h1>Artistas</h1>
+            <p class="count">{{ label(artists().length, 'artista', 'artistas') }}</p>
+          </div>
+        </header>
+        @if (artistsError()) {
+          <p class="message message-error">{{ artistsError() }}</p>
+        }
+        @if (artistsLoading() && artists().length === 0) {
+          <p class="hint">Cargando artistas…</p>
+        } @else if (artists().length === 0) {
+          <div class="empty-block">
+            <p>Todavía no hay artistas. Aparecen al guardar el artista de una canción.</p>
+          </div>
+        } @else {
+          <ul class="catalog">
+            @for (artist of artists(); track artist.id) {
+              <li>
+                <button type="button" class="catalog-main" (click)="searchArtist(artist.name)">
+                  <span class="art" [style.background]="cover(artist.name).background" aria-hidden="true">{{ cover(artist.name).initials }}</span>
+                  <span class="meta">
+                    <span class="title">{{ artist.name }}</span>
+                    <span class="sub">{{ label(artist.audioCount, 'canción', 'canciones') }}</span>
+                  </span>
+                </button>
+                @if (artist.tags.length) {
+                  <div class="chip-row inset">
+                    @for (tag of artist.tags; track tag) {
+                      <button type="button" class="tag-chip" [attr.aria-label]="'Filtrar por ' + tag" (click)="applyTag(tag)">{{ tag }}</button>
+                    }
+                  </div>
+                }
+                <button
+                  type="button"
+                  class="text-action"
+                  [attr.aria-label]="'Editar etiquetas de ' + artist.name"
+                  (click)="editArtist(artist)"
+                >Etiquetas</button>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    } @else if (section() === 'tags') {
+      <section class="view">
+        <header class="top">
+          <div>
+            <h1>Etiquetas</h1>
+            <p class="count">{{ label(tags().length, 'etiqueta', 'etiquetas') }}</p>
+          </div>
+        </header>
+        @if (tagsError()) {
+          <p class="message message-error">{{ tagsError() }}</p>
+        }
+        @if (tagsLoading() && tags().length === 0) {
+          <p class="hint">Cargando etiquetas…</p>
+        } @else if (tags().length === 0) {
+          <div class="empty-block">
+            <p>Todavía no hay etiquetas. Añádelas al editar una canción, un artista o una lista.</p>
+          </div>
+        } @else {
+          <ul class="catalog">
+            @for (tag of tags(); track tag.id) {
+              <li>
+                <button type="button" class="catalog-main tag-row" (click)="applyTag(tag.name)">
+                  <span class="meta">
+                    <span class="title">{{ tag.name }}</span>
+                    <span class="sub">
+                      {{ label(tag.audioCount, 'canción', 'canciones') }}
+                      · {{ label(tag.artistCount, 'artista', 'artistas') }}
+                      · {{ label(tag.playlistCount, 'lista', 'listas') }}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            }
+          </ul>
+        }
       </section>
     } @else {
       <section class="view">
@@ -176,17 +287,26 @@
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>
           </button>
         </header>
+        @if (tagFilter(); as tag) {
+          <div class="active-filter">
+            <button type="button" class="tag-chip current" [attr.aria-label]="'Quitar filtro ' + tag" (click)="clearTag()">
+              {{ tag }} <span aria-hidden="true">×</span>
+            </button>
+            <span>Biblioteca filtrada</span>
+          </div>
+        }
         <app-audio-list
           [entries]="homeEntries()"
           [selectedId]="player.current()?.id ?? -1"
-          [loading]="firstLoad()"
+          [loading]="firstLoad() || (searching() && !!tagFilter() && tagged().length === 0)"
           [errorMessage]="libraryError()"
-          emptyMessage="Tu biblioteca está vacía. Sube música con el botón +."
+          [emptyMessage]="tagFilter() ? 'Ninguna canción con la etiqueta «' + tagFilter() + '».' : 'Tu biblioteca está vacía. Sube música con el botón +.'"
           mode="library"
           (selected)="playVisible($event)"
-          (edit)="editing.set($event)"
+          (edit)="openEdit($event)"
           (add)="addingTrack.set($event)"
           (delete)="deleteTrack($event)"
+          (tagSelected)="applyTag($event)"
         ></app-audio-list>
       </section>
     }
@@ -204,6 +324,14 @@
     <button type="button" [class.active]="section() === 'playlists' || !!activePlaylist()" (click)="showSection('playlists')">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h10v2H5zm0 5h10v2H5zm0 5h7v2H5zm13-8.5 4 2.5-4 2.5z"/></svg>
       Playlists
+    </button>
+    <button type="button" [class.active]="section() === 'artists'" (click)="showSection('artists')">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a3.4 3.4 0 1 0-3.4-3.4A3.4 3.4 0 0 0 12 12zm0 2c-3.2 0-6 1.6-6 3.6V19h12v-1.4c0-2-2.8-3.6-6-3.6z"/></svg>
+      Artistas
+    </button>
+    <button type="button" [class.active]="section() === 'tags'" (click)="showSection('tags')">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.6 13.4 12.4 21.6a1.5 1.5 0 0 1-2.1 0L3 14.3V4.5A1.5 1.5 0 0 1 4.5 3h9.8l6.3 6.3a1.5 1.5 0 0 1 0 2.1zM7.2 8.2a1.3 1.3 0 1 0-1.3-1.3 1.3 1.3 0 0 0 1.3 1.3z"/></svg>
+      Tags
     </button>
   </nav>
 </div>
@@ -234,9 +362,21 @@
   <app-metadata-dialog
     [track]="track"
     [busy]="savingMeta()"
+    [suggestions]="tagNames()"
     (saved)="saveMetadata($event)"
     (cancelled)="editing.set(null)"
   ></app-metadata-dialog>
+}
+
+@if (editingTags(); as target) {
+  <app-tags-dialog
+    [title]="target.title"
+    [tags]="target.tags"
+    [suggestions]="tagNames()"
+    [busy]="savingTags()"
+    (saved)="saveTags($event)"
+    (cancelled)="editingTags.set(null)"
+  ></app-tags-dialog>
 }
 
 @if (addingTrack(); as track) {

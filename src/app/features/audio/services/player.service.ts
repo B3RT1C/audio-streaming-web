@@ -1,5 +1,5 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { Track, trackTitle } from '../models/track';
+import { Track, trackSecondary, trackTitle } from '../models/track';
 import {
   advance,
   createQueueCursor,
@@ -345,9 +345,11 @@ export class PlayerService {
       this.publishPlaybackState();
       return;
     }
+    const secondary = trackSecondary(track);
+    const artist = track.artist?.trim() ?? '';
     session.metadata = new MediaMetadata({
       title: trackTitle(track),
-      artist: track.artist?.trim() || 'Música',
+      artist: [secondary, artist].filter(Boolean).join(' · ') || 'Música',
       album: track.album?.trim() || '',
       artwork: this.artwork(),
     });

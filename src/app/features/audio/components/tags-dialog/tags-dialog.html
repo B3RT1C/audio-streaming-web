@@ -1,0 +1,21 @@
+<div class="dialog-backdrop" (click)="onBackdrop($event)">
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="tags-dialog-title" (click)="$event.stopPropagation()">
+    <header class="dialog-header">
+      <h2 id="tags-dialog-title">{{ title() }}</h2>
+      <p class="dialog-subtitle">{{ subtitle() }}</p>
+    </header>
+    <div class="dialog-body">
+      <app-tag-editor
+        [tags]="current()"
+        [suggestions]="suggestions()"
+        (tagsChange)="current.set($event)"
+      ></app-tag-editor>
+    </div>
+    <footer class="dialog-actions">
+      <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="cancel()">Cancelar</button>
+      <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="saved.emit(current())">
+        {{ busy() ? 'Guardando…' : 'Guardar' }}
+      </button>
+    </footer>
+  </div>
+</div>

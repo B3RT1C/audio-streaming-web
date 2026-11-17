@@ -1,13 +1,14 @@
 import { asNumber, asString, isRecord } from '../utils/json';
+import { normalizeTagNames } from './tags';
 import { normalizeTrack, Track } from './track';
 
 /**
- * Playlist wire format from audio-streaming-backend 0.2.0.
+ * Playlist wire format from audio-streaming-backend 0.3.0.
  *
- * GET /playlists returns summaries: { id, name, createdAt, updatedAt, itemCount } and omits items.
- * GET/POST/PATCH /playlists/{id} and PUT /playlists/{id}/items return the playlist with items.
+ * GET /playlists returns summaries: { id, name, createdAt, updatedAt, itemCount, tags } and omits items.
+ * GET/POST/PATCH /playlists/{id}, PUT /playlists/{id}/items and PUT /playlists/{id}/tags return items.
  * Each item is { position, audioId, audio }. position is 1-based and may contain gaps.
- * POST /playlists/{id}/items returns that item, not the whole playlist.
+ * audio includes secondaryTitle and tags. POST /playlists/{id}/items returns that item, not the playlist.
  */
 export interface PlaylistItem {
   position: number;
@@ -25,6 +26,7 @@ export interface Playlist {
    * [] means the playlist was loaded and is empty.
    */
   items: PlaylistItem[] | null;
+  tags: string[];
 }
 
 export function normalizePlaylistList(raw: unknown): Playlist[] {
@@ -46,7 +48,7 @@ export function normalizePlaylist(raw: unknown): Playlist | null {
   const items = normalizeItems(raw['items']);
   const reported = asNumber(raw['itemCount']);
   const itemCount = items != null ? items.length : (reported ?? 0);
-  return { id, name, itemCount, items };
+  return { id, name, itemCount, items, tags: normalizeTagNames(raw['tags']) };
 }
 
 /** Body of POST /playlists/{id}/items: { position, audioId, audio }. */

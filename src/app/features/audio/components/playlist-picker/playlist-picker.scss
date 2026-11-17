@@ -2,9 +2,14 @@
   display: contents;
 }
 
-.hint {
+.hint,
+.alt {
   margin: 0;
   color: var(--text-muted);
+}
+
+.alt {
+  font-weight: 500;
 }
 
 .choices {

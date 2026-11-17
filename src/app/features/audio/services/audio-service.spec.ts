@@ -38,13 +38,45 @@ describe('AudioService', () => {
         path: 'p',
         extension: 'mp3',
         title: 'Luna',
+        secondaryTitle: 'Moon',
         artist: 'Sol',
         album: 'Noche',
         durationSeconds: 40,
         trackNumber: 1,
+        tags: ['Live'],
       },
     ]);
     expect(titles).toEqual(['Luna']);
+  });
+
+  it('combines the tag filter with the search and replaces tags', () => {
+    let secondary = '';
+    service.list('luna', 'Live').subscribe((tracks) => {
+      secondary = tracks[0]?.secondaryTitle ?? '';
+    });
+    const listed = http.expectOne(
+      (request) =>
+        request.url === config.url('/audios') &&
+        request.params.get('q') === 'luna' &&
+        request.params.get('tag') === 'Live',
+    );
+    listed.flush([
+      {
+        id: 1,
+        name: 'a.mp3',
+        title: 'Luna',
+        secondaryTitle: 'Moon',
+        extension: 'mp3',
+        tags: ['Live'],
+      },
+    ]);
+    expect(secondary).toBe('Moon');
+
+    service.replaceTags(1, []).subscribe();
+    const replaced = http.expectOne(config.url('/audios/1/tags'));
+    expect(replaced.request.method).toBe('PUT');
+    expect(replaced.request.body).toEqual({ tags: [] });
+    replaced.flush({ id: 1, name: 'a.mp3', title: 'Luna', secondaryTitle: 'Moon', extension: 'mp3', tags: [] });
   });
 
   it('patches title, artist, album and track number', () => {

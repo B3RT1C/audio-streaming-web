@@ -1,0 +1,77 @@
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.picked {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.1rem;
+    max-width: 100%;
+    padding: 0.1rem 0.15rem 0.1rem 0.7rem;
+    border-radius: 999px;
+    background: #242428;
+    color: #e4e4e7;
+    font-size: 0.85rem;
+  }
+
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  button {
+    width: 32px;
+    height: 32px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+}
+
+.composer input {
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  padding: 0.55rem 0.75rem;
+}
+
+.suggest {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem;
+  border-radius: 12px;
+  background: #1c1c20;
+  max-height: 16rem;
+  overflow: auto;
+
+  button {
+    width: 100%;
+    min-height: 44px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    text-align: left;
+    padding: 0 0.75rem;
+    color: #f5f5f5;
+
+    &.active {
+      background: #2a2a30;
+    }
+  }
+}

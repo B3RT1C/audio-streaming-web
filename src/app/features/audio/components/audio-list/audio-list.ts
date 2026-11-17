@@ -1,7 +1,43 @@
-import { Component, input, output, signal } from '@angular/core';
-import { Track, TrackRow, trackSubtitle, trackTitle } from '../../models/track';
+import {
+  afterNextRender,
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  HostListener,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
+import { Track, TrackRow, trackSecondary, trackSubtitle, trackTitle } from '../../models/track';
 import { coverArt } from '../../utils/cover-art';
 import { formatClock } from '../../utils/format-time';
+import { layoutRows, visibleRange } from '../../utils/virtual-window';
+
+/** Above this size only the rows near the viewport are rendered. */
+export const VIRTUAL_THRESHOLD = 100;
+const ROW_BASE = 76;
+const ROW_ALT = 18;
+const ROW_TAGS = 42;
+
+export function trackRowHeight(entry: TrackRow): number {
+  let height = ROW_BASE;
+  if (entry.track?.secondaryTitle?.trim()) {
+    height += ROW_ALT;
+  }
+  if ((entry.track?.tags.length ?? 0) > 0) {
+    height += ROW_TAGS;
+  }
+  return height;
+}
+
+interface VisibleRow {
+  entry: TrackRow;
+  index: number;
+  top: number;
+  height: number;
+}
 
 @Component({
   selector: 'app-audio-list',
@@ -9,6 +45,8 @@ import { formatClock } from '../../utils/format-time';
   styleUrl: './audio-list.scss',
 })
 export class AudioList {
+  private readonly host = inject(ElementRef<HTMLElement>);
+
   readonly entries = input<TrackRow[]>([]);
   readonly selectedId = input(-1);
   readonly loading = input(false);
@@ -23,16 +61,66 @@ export class AudioList {
   readonly delete = output<Track>();
   readonly move = output<{ audioId: number; direction: -1 | 1 }>();
   readonly reordered = output<number[]>();
+  readonly tagSelected = output<string>();
 
   readonly menuId = signal<number | null>(null);
   readonly dragOver = signal(-1);
+  private readonly range = signal({ start: 0, end: 24 });
 
   protected readonly titleOf = trackTitle;
+  protected readonly secondaryOf = trackSecondary;
   protected readonly subtitleOf = trackSubtitle;
   protected readonly clock = formatClock;
   protected readonly cover = coverArt;
 
   private dragFrom = -1;
+
+  readonly virtual = computed(() => this.entries().length > VIRTUAL_THRESHOLD);
+
+  readonly layout = computed(() => layoutRows(this.entries().map((entry) => trackRowHeight(entry))));
+
+  readonly rows = computed<VisibleRow[]>(() => {
+    const entries = this.entries();
+    const spans = this.layout().spans;
+    const range = this.virtual() ? this.range() : { start: 0, end: entries.length };
+    const start = Math.max(0, Math.min(range.start, entries.length));
+    const end = Math.max(start, Math.min(range.end, entries.length));
+    const rows: VisibleRow[] = [];
+    for (let index = start; index < end; index += 1) {
+      const entry = entries[index];
+      const span = spans[index];
+      if (!entry || !span) {
+        continue;
+      }
+      rows.push({ entry, index, top: span.top, height: span.height });
+    }
+    return rows;
+  });
+
+  constructor() {
+    effect(() => {
+      this.entries();
+      queueMicrotask(() => this.measure());
+    });
+    afterNextRender(() => this.measure());
+  }
+
+  @HostListener('window:scroll')
+  @HostListener('window:resize')
+  measure(): void {
+    if (!this.virtual()) {
+      return;
+    }
+    const rect = this.host.nativeElement.getBoundingClientRect();
+    const listTop = rect.top + window.scrollY;
+    const viewTop = window.scrollY - listTop - 280;
+    const viewBottom = window.scrollY + (window.innerHeight || 800) - listTop + 420;
+    const next = visibleRange(this.layout().spans, viewTop, viewBottom, 6);
+    const current = this.range();
+    if (current.start !== next.start || current.end !== next.end) {
+      this.range.set(next);
+    }
+  }
 
   openEntry(): TrackRow | null {
     const id = this.menuId();
@@ -78,6 +166,11 @@ export class AudioList {
     this.add.emit(track);
   }
 
+  pickTag(tag: string, event: Event): void {
+    event.stopPropagation();
+    this.tagSelected.emit(tag);
+  }
+
   onGripKey(index: number, event: KeyboardEvent): void {
     if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') {
       return;
@@ -102,6 +195,11 @@ export class AudioList {
   onGripMove(event: PointerEvent): void {
     if (this.dragFrom < 0) {
       return;
+    }
+    if (event.clientY < 96) {
+      window.scrollBy(0, -28);
+    } else if (event.clientY > window.innerHeight - 140) {
+      window.scrollBy(0, 28);
     }
     const target = document.elementFromPoint(event.clientX, event.clientY)?.closest('[data-index]');
     if (!target) {

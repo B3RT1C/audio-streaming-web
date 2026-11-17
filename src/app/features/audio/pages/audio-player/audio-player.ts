@@ -6,11 +6,14 @@ import { AudioList } from '../../components/audio-list/audio-list';
 import { MetadataDialog } from '../../components/metadata-dialog/metadata-dialog';
 import { PlayerBar } from '../../components/player-bar/player-bar';
 import { PlaylistPicker } from '../../components/playlist-picker/playlist-picker';
+import { TagsDialog } from '../../components/tags-dialog/tags-dialog';
 import { UploadDialog } from '../../components/upload-dialog/upload-dialog';
+import { Artist, TagSummary } from '../../models/catalog';
 import { createUploadDraft, UploadDraft } from '../../models/upload-draft';
 import { Playlist, PlaylistItem } from '../../models/playlist';
-import { Track, TrackMetadataPatch, TrackRow } from '../../models/track';
+import { Track, TrackEdit, TrackRow } from '../../models/track';
 import { AudioService } from '../../services/audio-service';
+import { CatalogService } from '../../services/catalog-service';
 import { PlayerService } from '../../services/player.service';
 import { PlaylistService } from '../../services/playlist-service';
 import { toUserMessage } from '../../utils/api-error';
@@ -18,33 +21,52 @@ import { coverArt } from '../../utils/cover-art';
 import { SEARCH_DEBOUNCE_MS } from '../../utils/search-query';
 import { UPLOAD_ACCEPT, validateUploadFile } from '../../utils/upload-rules';
 
+type Section = 'home' | 'search' | 'playlists' | 'artists' | 'tags';
+
+interface TagEditTarget {
+  kind: 'artist' | 'playlist';
+  id: number;
+  title: string;
+  tags: string[];
+}
+
 @Component({
   selector: 'app-audio-player',
-  imports: [AudioList, UploadDialog, MetadataDialog, PlaylistPicker, PlayerBar],
+  imports: [AudioList, UploadDialog, MetadataDialog, PlaylistPicker, PlayerBar, TagsDialog],
   templateUrl: './audio-player.html',
   styleUrl: './audio-player.scss',
 })
 export class AudioPlayer implements OnInit {
   private readonly audioService = inject(AudioService);
   private readonly playlistService = inject(PlaylistService);
+  private readonly catalogService = inject(CatalogService);
   private readonly destroyRef = inject(DestroyRef);
   readonly player = inject(PlayerService);
 
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
 
   readonly accept = UPLOAD_ACCEPT;
-  readonly section = signal<'home' | 'search' | 'playlists'>('home');
+  readonly section = signal<Section>('home');
   readonly playlistMenu = signal(false);
   readonly cover = coverArt;
   readonly query = signal('');
+  readonly tagFilter = signal('');
   readonly results = signal<Track[]>([]);
+  readonly tagged = signal<Track[]>([]);
   readonly catalog = signal<Track[]>([]);
   readonly playlists = signal<Playlist[]>([]);
+  readonly artists = signal<Artist[]>([]);
+  readonly tags = signal<TagSummary[]>([]);
+  readonly artistsLoading = signal(false);
+  readonly tagsLoading = signal(false);
+  readonly tagsLoaded = signal(false);
   readonly activePlaylist = signal<Playlist | null>(null);
   readonly firstLoad = signal(true);
   readonly searching = signal(false);
   readonly libraryError = signal('');
   readonly playlistError = signal('');
+  readonly artistsError = signal('');
+  readonly tagsError = signal('');
   readonly actionError = signal('');
   readonly uploadMessage = signal('');
   readonly uploading = signal(false);
@@ -54,6 +76,8 @@ export class AudioPlayer implements OnInit {
   readonly uploadDrafts = signal<UploadDraft[] | null>(null);
   readonly editing = signal<Track | null>(null);
   readonly savingMeta = signal(false);
+  readonly editingTags = signal<TagEditTarget | null>(null);
+  readonly savingTags = signal(false);
   readonly addingTrack = signal<Track | null>(null);
   readonly newPlaylistName = signal('');
   readonly creatingPlaylist = signal(false);
@@ -62,13 +86,19 @@ export class AudioPlayer implements OnInit {
 
   private readonly searchTerms = new Subject<string>();
 
-  readonly homeEntries = computed<TrackRow[]>(() =>
-    this.catalog().map((track) => ({ audioId: track.id, track })),
-  );
+  readonly tagNames = computed(() => this.tags().map((tag) => tag.name));
 
-  readonly searchEntries = computed<TrackRow[]>(() =>
-    this.results().map((track) => ({ audioId: track.id, track })),
-  );
+  readonly homeEntries = computed<TrackRow[]>(() => {
+    const source = this.tagFilter().trim() ? this.tagged() : this.catalog();
+    return source.map((track) => ({ audioId: track.id, track }));
+  });
+
+  readonly searchEntries = computed<TrackRow[]>(() => {
+    const query = this.query().trim();
+    const tag = this.tagFilter().trim();
+    const source = !query && tag ? this.tagged() : this.results();
+    return source.map((track) => ({ audioId: track.id, track }));
+  });
 
   readonly playlistEntries = computed<TrackRow[]>(() => {
     const playlist = this.activePlaylist();
@@ -123,13 +153,86 @@ export class AudioPlayer implements OnInit {
     this.showSection('home');
   }
 
-  showSection(section: 'home' | 'search' | 'playlists'): void {
+  showSection(section: Section): void {
     this.section.set(section);
     this.playlistMenu.set(false);
     if (section !== 'playlists') {
       this.activePlaylist.set(null);
       this.renaming.set(false);
     }
+    if (section === 'artists') {
+      this.loadArtists();
+    }
+    if (section === 'tags') {
+      this.loadTags();
+    }
+  }
+
+  applyTag(name: string): void {
+    const tag = name.trim();
+    if (!tag) {
+      return;
+    }
+    this.tagFilter.set(tag);
+    this.activePlaylist.set(null);
+    this.renaming.set(false);
+    this.playlistMenu.set(false);
+    const query = this.query().trim();
+    this.section.set(query ? 'search' : 'home');
+    this.loadLibrary('').pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
+    if (query) {
+      this.loadLibrary(query).pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
+    }
+  }
+
+  clearTag(): void {
+    if (!this.tagFilter()) {
+      return;
+    }
+    this.tagFilter.set('');
+    this.tagged.set([]);
+    this.loadLibrary(this.query().trim()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
+  }
+
+  searchArtist(name: string): void {
+    this.query.set(name);
+    this.activePlaylist.set(null);
+    this.section.set('search');
+    this.searchTerms.next(name);
+  }
+
+  openEdit(track: Track): void {
+    this.editing.set(track);
+    this.ensureTagCatalog();
+  }
+
+  editArtist(artist: Artist): void {
+    this.editingTags.set({
+      kind: 'artist',
+      id: artist.id,
+      title: `Etiquetas de ${artist.name}`,
+      tags: artist.tags,
+    });
+    this.ensureTagCatalog();
+  }
+
+  editPlaylistTags(): void {
+    const playlist = this.activePlaylist();
+    if (!playlist) {
+      return;
+    }
+    this.playlistMenu.set(false);
+    this.editingTags.set({
+      kind: 'playlist',
+      id: playlist.id,
+      title: `Etiquetas de ${playlist.name}`,
+      tags: playlist.tags,
+    });
+    this.ensureTagCatalog();
+  }
+
+  label(count: number, singular: string, plural: string): string {
+    return `${count} ${count === 1 ? singular : plural}`;
   }
 
   openPlaylist(id: number): void {
@@ -146,7 +249,9 @@ export class AudioPlayer implements OnInit {
           this.activePlaylist.set(playlist);
           this.playlists.update((lists) =>
             lists.map((item) =>
-              item.id === playlist.id ? { ...item, name: playlist.name, itemCount: playlist.itemCount } : item,
+              item.id === playlist.id
+                ? { ...item, name: playlist.name, itemCount: playlist.itemCount, tags: playlist.tags }
+                : item,
             ),
           );
           this.playlistError.set('');
@@ -359,15 +464,18 @@ export class AudioPlayer implements OnInit {
       });
   }
 
-  saveMetadata(patch: TrackMetadataPatch): void {
+  saveMetadata(edit: TrackEdit): void {
     const track = this.editing();
-    if (!track) {
+    if (!track || this.savingMeta()) {
       return;
     }
     this.savingMeta.set(true);
     this.audioService
-      .updateMetadata(track.id, patch)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .updateMetadata(track.id, edit.patch)
+      .pipe(
+        switchMap(() => this.audioService.replaceTags(track.id, edit.tags)),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: () => {
           this.savingMeta.set(false);
@@ -378,9 +486,60 @@ export class AudioPlayer implements OnInit {
           if (playlist) {
             this.openPlaylist(playlist.id);
           }
+          if (this.tagsLoaded()) {
+            this.loadTags();
+          }
         },
         error: (err: unknown) => {
           this.savingMeta.set(false);
+          this.actionError.set(toUserMessage('metadata', err));
+        },
+      });
+  }
+
+  saveTags(tags: string[]): void {
+    const target = this.editingTags();
+    if (!target || this.savingTags()) {
+      return;
+    }
+    this.savingTags.set(true);
+    if (target.kind === 'playlist') {
+      this.playlistService
+        .replaceTags(target.id, tags)
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe({
+          next: (updated) => {
+            if (updated) {
+              this.activePlaylist.set(updated);
+              this.playlists.update((lists) =>
+                lists.map((item) =>
+                  item.id === updated.id
+                    ? { ...item, name: updated.name, itemCount: updated.itemCount, tags: updated.tags }
+                    : item,
+                ),
+              );
+            }
+            this.finishTagSave();
+          },
+          error: (err: unknown) => {
+            this.savingTags.set(false);
+            this.actionError.set(toUserMessage('playlist', err));
+          },
+        });
+      return;
+    }
+    this.catalogService
+      .replaceArtistTags(target.id, tags)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (updated) => {
+          if (updated) {
+            this.artists.update((list) => list.map((artist) => (artist.id === updated.id ? updated : artist)));
+          }
+          this.finishTagSave();
+        },
+        error: (err: unknown) => {
+          this.savingTags.set(false);
           this.actionError.set(toUserMessage('metadata', err));
         },
       });
@@ -537,15 +696,20 @@ export class AudioPlayer implements OnInit {
   }
 
   private loadLibrary(term: string) {
+    const tag = this.tagFilter().trim();
     this.searching.set(true);
     this.libraryError.set('');
-    return this.audioService.list(term).pipe(
+    return this.audioService.list(term, tag).pipe(
       tap((tracks) => {
-        this.results.set(tracks);
-        if (!term) {
+        if (!term && !tag) {
           this.catalog.set(tracks);
+          this.results.set(tracks);
+        } else if (!term && tag) {
+          this.tagged.set(tracks);
+        } else {
+          this.results.set(tracks);
         }
-        this.player.syncCatalog(term ? this.catalog() : tracks);
+        this.player.syncCatalog(this.catalog());
         this.searching.set(false);
         this.firstLoad.set(false);
       }),
@@ -560,15 +724,23 @@ export class AudioPlayer implements OnInit {
 
   private refreshLibrary(): void {
     const term = this.query().trim();
-    this.loadLibrary(term).pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
+    const tag = this.tagFilter().trim();
+    if (!term && !tag) {
+      this.loadLibrary('').pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
+      return;
+    }
+    this.audioService
+      .list('')
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((tracks) => {
+        this.catalog.set(tracks);
+        this.player.syncCatalog(tracks);
+      });
+    if (tag) {
+      this.loadLibrary('').pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
+    }
     if (term) {
-      this.audioService
-        .list('')
-        .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe((tracks) => {
-          this.catalog.set(tracks);
-          this.player.syncCatalog(tracks);
-        });
+      this.loadLibrary(term).pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
     }
   }
 
@@ -587,5 +759,58 @@ export class AudioPlayer implements OnInit {
         },
         error: (err: unknown) => this.playlistError.set(toUserMessage('playlist', err)),
       });
+  }
+
+  private loadArtists(): void {
+    this.artistsLoading.set(true);
+    this.artistsError.set('');
+    this.catalogService
+      .listArtists()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (artists) => {
+          this.artists.set(artists);
+          this.artistsLoading.set(false);
+        },
+        error: (err: unknown) => {
+          this.artistsLoading.set(false);
+          this.artistsError.set(toUserMessage('list', err));
+        },
+      });
+  }
+
+  private loadTags(): void {
+    this.tagsLoading.set(true);
+    this.tagsError.set('');
+    this.catalogService
+      .listTags()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (tags) => {
+          this.tags.set(tags);
+          this.tagsLoaded.set(true);
+          this.tagsLoading.set(false);
+        },
+        error: (err: unknown) => {
+          this.tagsLoading.set(false);
+          this.tagsError.set(toUserMessage('list', err));
+        },
+      });
+  }
+
+  private ensureTagCatalog(): void {
+    if (this.tagsLoaded() || this.tagsLoading()) {
+      return;
+    }
+    this.loadTags();
+  }
+
+  private finishTagSave(): void {
+    this.savingTags.set(false);
+    this.editingTags.set(null);
+    this.actionError.set('');
+    if (this.tagsLoaded()) {
+      this.loadTags();
+    }
   }
 }
