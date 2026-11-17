@@ -3,12 +3,12 @@
   <span class="art" [style.background]="art().background" aria-hidden="true">{{ art().initials }}</span>
   <span class="now">
     <span class="title-line">
-      <span class="title">{{ player.current() ? titleOf(player.current()) : 'Nada en reproducción' }}</span>
+      <span class="title" [attr.title]="player.current() ? titleOf(player.current()) : null">{{ player.current() ? titleOf(player.current()) : 'Nada en reproducción' }}</span>
       @if (player.current() && secondaryOf(player.current())) {
-        <span class="alt">{{ secondaryOf(player.current()) }}</span>
+        <span class="alt" [attr.title]="secondaryOf(player.current())">{{ secondaryOf(player.current()) }}</span>
       }
     </span>
-    <span class="sub">
+    <span class="sub" [attr.title]="player.current() ? (subtitleOf(player.current()) || null) : null">
       @if (player.shuffle()) {
         <span class="shuffle-flag">Aleatorio</span>
       }
@@ -37,12 +37,12 @@
     <span class="art" [style.background]="art().background" aria-hidden="true">{{ art().initials }}</span>
     <span class="now">
       <span class="title-line">
-        <span class="title">{{ player.current() ? titleOf(player.current()) : 'Nada en reproducción' }}</span>
+        <span class="title" [attr.title]="player.current() ? titleOf(player.current()) : null">{{ player.current() ? titleOf(player.current()) : 'Nada en reproducción' }}</span>
         @if (player.current() && secondaryOf(player.current())) {
-          <span class="alt">{{ secondaryOf(player.current()) }}</span>
+          <span class="alt" [attr.title]="secondaryOf(player.current())">{{ secondaryOf(player.current()) }}</span>
         }
       </span>
-      <span class="sub">
+      <span class="sub" [attr.title]="player.current() ? (subtitleOf(player.current()) || null) : null">
       @if (player.shuffle()) {
         <span class="shuffle-flag">Aleatorio</span>
       }
@@ -94,11 +94,11 @@
     </header>
     <div class="stage-art" [style.background]="art().background" aria-hidden="true">{{ art().initials }}</div>
     <div class="full-copy">
-      <h2>{{ player.current() ? titleOf(player.current()) : 'Nada en reproducción' }}</h2>
+      <h2 [attr.title]="player.current() ? titleOf(player.current()) : null">{{ player.current() ? titleOf(player.current()) : 'Nada en reproducción' }}</h2>
       @if (player.current() && secondaryOf(player.current())) {
-        <p class="alt">{{ secondaryOf(player.current()) }}</p>
+        <p class="alt" [attr.title]="secondaryOf(player.current())">{{ secondaryOf(player.current()) }}</p>
       }
-      <p>
+      <p [attr.title]="player.current() ? (subtitleOf(player.current()) || null) : null">
         @if (player.shuffle()) {
           <span class="shuffle-flag">Aleatorio</span>
         }
@@ -145,7 +145,7 @@
           <ol [style.paddingTop.px]="queuePad().top" [style.paddingBottom.px]="queuePad().bottom">
             @for (item of visibleQueue(); track item.track.id) {
               <li>
-                <button type="button" [class.current]="item.current" (click)="player.jumpTo(item.index)">
+                <button type="button" [class.current]="item.current" [attr.title]="titleOf(item.track)" (click)="player.jumpTo(item.index)">
                   <span class="q-title">{{ titleOf(item.track) }}</span>
                   @if (secondaryOf(item.track)) {
                     <span class="q-alt">{{ secondaryOf(item.track) }}</span>

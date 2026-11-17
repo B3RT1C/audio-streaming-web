@@ -3,7 +3,7 @@
     <section class="tag-group" [class.locked]="group.locked" [attr.data-type]="group.type">
       <h3>
         <span class="swatch" [style.background]="group.color" aria-hidden="true"></span>
-        {{ group.label }}
+        <span class="group-label" [attr.title]="group.label">{{ group.label }}</span>
         @if (group.locked) {
           <span class="lock" aria-label="Bloqueada">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10V8a4 4 0 0 1 8 0v2h1.5A1.5 1.5 0 0 1 19 11.5v8A1.5 1.5 0 0 1 17.5 21h-11A1.5 1.5 0 0 1 5 19.5v-8A1.5 1.5 0 0 1 6.5 10zm2 0h4V8a2 2 0 0 0-4 0z"/></svg>
@@ -13,8 +13,8 @@
       @if (group.tags.length) {
         <ul class="picked">
           @for (tag of group.tags; track tag.type + tag.name) {
-            <li [style.--tone]="group.color">
-              <span>{{ tag.name }}</span>
+            <li class="tag-pill" [class.readonly]="locked(tag)" [style.--tone]="group.color" [attr.title]="tag.name">
+              <span class="pill-label">{{ tag.name }}</span>
               @if (!locked(tag)) {
                 <button type="button" [attr.aria-label]="'Quitar ' + tag.name" (click)="remove(tag)">×</button>
               }
@@ -33,7 +33,7 @@
             [value]="editingType() === group.type ? draft() : ''"
             [attr.aria-expanded]="open() && editingType() === group.type && options().length > 0"
             aria-autocomplete="list"
-            [placeholder]="'Añadir ' + group.label.toLocaleLowerCase()"
+            [placeholder]="addPlaceholder(group)"
             (input)="onDraft(group.type, $event)"
             (focus)="onFocus(group.type)"
             (blur)="closeSoon()"
@@ -47,6 +47,7 @@
                 <button
                   type="button"
                   [class.active]="active() === i"
+                  [attr.title]="option.name"
                   (mousedown)="$event.preventDefault(); add(group.type, option.name)"
                 >
                   {{ option.kind === 'create' ? 'Crear «' + option.name + '»' : option.name }}

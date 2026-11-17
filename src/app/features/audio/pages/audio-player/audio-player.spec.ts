@@ -57,8 +57,7 @@ describe('AudioPlayer', () => {
     fixture.componentInstance.showSection('search');
     fixture.detectChanges();
     const search = fixture.nativeElement.querySelector('input[type="search"]') as HTMLInputElement;
-    expect(search.placeholder).toContain('título');
-    expect(search.placeholder).toContain('artista');
+    expect(search.placeholder).toBe('Buscar o filtrar: género:, año:, #etiqueta');
     const chip = fixture.nativeElement.querySelector('.playlist-chip') as HTMLElement;
     expect(chip.textContent).toContain('Viaje');
     expect(chip.textContent).toContain('9');
@@ -220,7 +219,9 @@ describe('AudioPlayer', () => {
     expect(text).toContain('4');
 
     fixture.componentInstance.query.set('noche');
-    const row = fixture.nativeElement.querySelector('.tag-row') as HTMLButtonElement;
+    const row = [...fixture.nativeElement.querySelectorAll('button.tag-chip')].find((node) =>
+      (node.textContent ?? '').includes('Live'),
+    ) as HTMLButtonElement;
     row.click();
     http
       .expectOne((request) => request.params.get('f') === '#Live' && request.params.get('q') === 'noche')

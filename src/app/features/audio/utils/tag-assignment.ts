@@ -1,5 +1,5 @@
 import { isRecord, asString } from '../utils/json';
-import { isDerivedType } from './filter-tokens';
+import { isDerivedType, typeKeyOf } from './filter-tokens';
 
 /** One tag attached to a track, artist or playlist. */
 export interface AssignedTag {
@@ -19,7 +19,10 @@ export function isTagLocked(tag: AssignedTag): boolean {
   return tag.readOnly || isDerivedType(tag.type) || tag.type === 'artist';
 }
 
-/** Accepts the 0.3 string list and 0.4.1 objects `{ type, name, readOnly }`. */
+/**
+ * Accepts the 0.3 string list and 0.4.1 objects `{ type, name, readOnly }`.
+ * `type` may be a key or `{ key }`, the same shape as GET /tags.
+ */
 export function normalizeAssignedTags(raw: unknown): AssignedTag[] {
   if (!Array.isArray(raw)) {
     return [];
@@ -40,7 +43,7 @@ export function normalizeAssignedTags(raw: unknown): AssignedTag[] {
     if (!name) {
       continue;
     }
-    const type = cleanTagName(asString(entry['type']) ?? asString(entry['typeKey']) ?? '') || 'free';
+    const type = cleanTagName(typeKeyOf(entry['type']) || typeKeyOf(entry['typeKey'])) || 'free';
     const readOnly = entry['readOnly'] === true || isDerivedType(type) || type === 'artist';
     result.push({ name, type, readOnly });
   }

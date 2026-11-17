@@ -10,7 +10,7 @@
     <div class="dialog-body">
       @for (draft of drafts(); track draft.file.name + $index; let i = $index) {
         <fieldset class="draft-fields" [disabled]="busy()">
-          <legend>{{ draft.file.name }}</legend>
+          <legend [attr.title]="draft.file.name">{{ draft.file.name }}</legend>
           <label class="field">
             <span class="field-label">Nombre</span>
             <input

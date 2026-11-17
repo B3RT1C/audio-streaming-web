@@ -21,12 +21,18 @@
   gap: 0.35rem;
 
   button {
+    display: block;
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
     text-align: left;
     border: 1px solid var(--border);
     background: var(--bg);
     border-radius: 12px;
     min-height: 2.75rem;
     padding: 0.55rem 0.8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }

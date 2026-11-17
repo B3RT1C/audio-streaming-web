@@ -3,38 +3,68 @@
     <p class="message message-error">{{ error() }}</p>
   }
 
-  <div class="type-column">
-    <h2>Tipos de sistema</h2>
-    @for (block of systemBlocks(); track block.type.id) {
-      <article class="type-card">
-        <header>
-          <span class="swatch" [style.background]="tone(block.type)" aria-hidden="true"></span>
-          <h3>{{ block.type.name }}</h3>
-          <span class="lock" aria-label="Tipo de sistema">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10V8a4 4 0 0 1 8 0v2h1.5A1.5 1.5 0 0 1 19 11.5v8A1.5 1.5 0 0 1 17.5 21h-11A1.5 1.5 0 0 1 5 19.5v-8A1.5 1.5 0 0 1 6.5 10zm2 0h4V8a2 2 0 0 0-4 0z"/></svg>
-          </span>
-          <span class="meta">{{ block.tags.length === 1 ? '1 etiqueta' : block.tags.length + ' etiquetas' }}</span>
-        </header>
-        @if (block.tags.length) {
-          <div class="chip-row">
-            @for (tag of block.tags; track tag.id) {
-              <button
-                type="button"
-                class="tag-chip tag-row"
-                [style.--tone]="tone(block.type)"
-                (click)="openTag.emit(tag)"
-              >
-                {{ tag.name }}
-                <span class="count">{{ tag.audioCount }}</span>
+  <label class="type-search">
+    <span class="visually-hidden">Buscar etiqueta</span>
+    <input
+      class="field-input"
+      type="search"
+      placeholder="Buscar etiqueta"
+      [value]="query()"
+      (input)="onQuery($event)"
+    >
+  </label>
+
+  @if (nothingMatches()) {
+    <p class="hint">Ninguna etiqueta coincide.</p>
+  }
+
+  @if (systemShown().length) {
+    <div class="type-column">
+      <h2>Tipos de sistema</h2>
+      @for (block of systemShown(); track block.type.id) {
+        <article class="type-card">
+          <header>
+            <span class="swatch" [style.background]="tone(block.type)" aria-hidden="true"></span>
+            <h3 [attr.title]="block.type.name">{{ block.type.name }}</h3>
+            <span class="lock" aria-label="Tipo de sistema">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10V8a4 4 0 0 1 8 0v2h1.5A1.5 1.5 0 0 1 19 11.5v8A1.5 1.5 0 0 1 17.5 21h-11A1.5 1.5 0 0 1 5 19.5v-8A1.5 1.5 0 0 1 6.5 10zm2 0h4V8a2 2 0 0 0-4 0z"/></svg>
+            </span>
+            <span class="meta">{{ etiquetaCount(block.tags.length) }}</span>
+          </header>
+          @if (canFold(block.tags.length)) {
+            <button type="button" class="fold" [attr.aria-expanded]="block.open" (click)="toggleGroup(block.type, block.tags.length)">
+              {{ block.open ? 'Ocultar' : 'Mostrar' }}
+            </button>
+          }
+          @if (block.open && block.visible.length) {
+            <div class="chip-row">
+              @for (tag of block.visible; track tag.id) {
+                <button
+                  type="button"
+                  class="tag-chip"
+                  [title]="tag.name"
+                  [style.--tone]="tone(block.type)"
+                  (click)="openTag.emit(tag)"
+                >
+                  <span class="chip-name">{{ tag.name }}</span>
+                  <span class="count">{{ tag.audioCount }}</span>
+                </button>
+              }
+            </div>
+            @if (block.hidden > 0) {
+              <button type="button" class="fold" (click)="showMore(block.type.key)">
+                Ver más · quedan {{ formatCount(block.hidden) }}
               </button>
             }
-          </div>
-        } @else if (block.type.key === 'free') {
-          <p class="hint">Las etiquetas libres aparecen al guardarlas en una canción, un artista o una lista.</p>
-        }
-      </article>
-    }
-  </div>
+          } @else if (!block.open) {
+            <p class="hint">Hay muchas etiquetas. Muéstralas o búscalas por nombre.</p>
+          } @else if (block.type.key === 'free' && block.tags.length === 0) {
+            <p class="hint">Las etiquetas libres aparecen al guardarlas en una canción, un artista o una lista.</p>
+          }
+        </article>
+      }
+    </div>
+  }
 
   <div class="type-column">
     <h2>Tipos propios</h2>
@@ -43,51 +73,84 @@
         <span class="field-label">Nombre</span>
         <input class="field-input" type="text" [value]="name()" maxlength="80" placeholder="Mood" (input)="onName($event)">
       </label>
-      <label>
-        <span class="field-label">Clave</span>
-        <input class="field-input" type="text" [value]="key()" maxlength="40" placeholder="mood" (input)="onKey($event)">
-      </label>
-      <label class="color">
-        <span class="field-label">Color</span>
-        <input type="color" [value]="color()" (input)="onColor($event)" aria-label="Color del tipo">
-      </label>
-      <button type="submit" class="btn btn-primary" [disabled]="busy() || !name().trim()">Crear tipo</button>
+      <div class="color-row">
+        <label class="color">
+          <span class="field-label">Color del tipo</span>
+          <input type="color" [value]="color()" (input)="onColor($event)" aria-label="Color del tipo">
+        </label>
+        <button type="submit" class="btn btn-primary" [disabled]="busy() || !name().trim()">Crear tipo</button>
+      </div>
+      <details class="advanced">
+        <summary>Opciones avanzadas</summary>
+        <label>
+          <span class="field-label">Clave</span>
+          <input class="field-input" type="text" [value]="key()" maxlength="40" autocomplete="off" (input)="onKey($event)">
+          <span class="field-hint">Se genera a partir del nombre. Cámbiala solo si hace falta.</span>
+        </label>
+      </details>
     </form>
     @if (formError()) {
       <p class="message message-error">{{ formError() }}</p>
     }
-    @for (block of customBlocks(); track block.type.id) {
+    @for (block of customShown(); track block.type.id) {
       <article class="type-card">
-        <header>
-          <span class="swatch" [style.background]="tone(block.type)" aria-hidden="true"></span>
-          @if (renamingId() === block.type.id) {
-            <form class="rename" (submit)="commitRename(block.type, $event)">
-              <label class="visually-hidden" [attr.for]="'rename-type-' + block.type.id">Nuevo nombre</label>
-              <input [id]="'rename-type-' + block.type.id" type="text" [value]="renameValue()" maxlength="80" (input)="onRename($event)">
-              <button type="submit" class="btn btn-primary">Guardar</button>
-              <button type="button" class="btn btn-ghost" (click)="renamingId.set(null)">Cancelar</button>
-            </form>
-          } @else {
-            <h3>{{ block.type.name }}</h3>
-            <span class="key">{{ block.type.key }}</span>
-            <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="startRename(block.type)">Renombrar</button>
-            <button type="button" class="btn btn-ghost danger" [disabled]="busy()" (click)="remove(block.type)">Borrar</button>
-          }
-        </header>
-        @if (block.tags.length) {
-          <div class="chip-row">
-            @for (tag of block.tags; track tag.id) {
+        @if (renamingId() === block.type.id) {
+          <form class="rename" (submit)="commitRename(block.type, $event)">
+            <label class="visually-hidden" [attr.for]="'rename-type-' + block.type.id">Nuevo nombre</label>
+            <input [id]="'rename-type-' + block.type.id" type="text" [value]="renameValue()" maxlength="80" (input)="onRename($event)">
+            <button type="submit" class="btn btn-primary">Guardar</button>
+            <button type="button" class="btn btn-ghost" (click)="renamingId.set(null)">Cancelar</button>
+          </form>
+        } @else {
+          <header>
+            <span class="swatch" [style.background]="tone(block.type)" aria-hidden="true"></span>
+            <h3 [attr.title]="block.type.name">{{ block.type.name }}</h3>
+            <span class="meta">{{ etiquetaCount(block.tags.length) }}</span>
+            <div class="menu-wrap">
               <button
                 type="button"
-                class="tag-chip tag-row"
+                class="more"
+                [attr.aria-label]="'Opciones de ' + block.type.name"
+                [attr.aria-expanded]="menuId() === block.type.id"
+                [disabled]="busy()"
+                (click)="toggleMenu(block.type.id)"
+              >
+                <span></span><span></span><span></span>
+              </button>
+              @if (menuId() === block.type.id) {
+                <div class="menu" role="menu">
+                  <button type="button" role="menuitem" (click)="startRename(block.type)">Renombrar</button>
+                  <button type="button" role="menuitem" class="danger" (click)="remove(block.type)">Borrar</button>
+                </div>
+              }
+            </div>
+          </header>
+        }
+        @if (canFold(block.tags.length) && renamingId() !== block.type.id) {
+          <button type="button" class="fold" [attr.aria-expanded]="block.open" (click)="toggleGroup(block.type, block.tags.length)">
+            {{ block.open ? 'Ocultar' : 'Mostrar' }}
+          </button>
+        }
+        @if (block.open && block.visible.length) {
+          <div class="chip-row">
+            @for (tag of block.visible; track tag.id) {
+              <button
+                type="button"
+                class="tag-chip"
+                [title]="tag.name"
                 [style.--tone]="tone(block.type)"
                 (click)="openTag.emit(tag)"
               >
-                {{ tag.name }}
+                <span class="chip-name">{{ tag.name }}</span>
                 <span class="count">{{ tag.audioCount }}</span>
               </button>
             }
           </div>
+          @if (block.hidden > 0) {
+            <button type="button" class="fold" (click)="showMore(block.type.key)">
+              Ver más · quedan {{ formatCount(block.hidden) }}
+            </button>
+          }
         }
       </article>
     }

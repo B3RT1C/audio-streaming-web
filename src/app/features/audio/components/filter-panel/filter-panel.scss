@@ -57,11 +57,18 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.45rem;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   margin: 0 0 0.75rem;
 
   .tag-chip {
     max-width: 100%;
-    white-space: nowrap;
+    min-width: 0;
+  }
+
+  .chip-x {
+    flex: none;
   }
 
   .tag-chip.typed {

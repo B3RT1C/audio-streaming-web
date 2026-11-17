@@ -1,4 +1,4 @@
-import { normalizeArtistList, normalizeTagList } from './catalog';
+import { normalizeArtistList, normalizeSuggestions, normalizeTagList } from './catalog';
 
 describe('catalog normalization', () => {
   it('reads artists with an exact name, a count and tags', () => {
@@ -36,5 +36,49 @@ describe('catalog normalization', () => {
         playlistCount: 0,
       },
     ]);
+  });
+
+  it('reads tag type as a string or as the object returned by GET /tags', () => {
+    expect(
+      normalizeTagList([
+        {
+          id: 5,
+          name: 'Rock',
+          audioCount: 2,
+          artistCount: 0,
+          playlistCount: 0,
+          readOnly: true,
+          type: { id: 2, key: 'genre', name: 'Género', system: true },
+        },
+        { id: 6, name: 'Directo', type: 'free', audioCount: 1, artistCount: 0, playlistCount: 0 },
+      ]),
+    ).toEqual([
+      {
+        id: 5,
+        name: 'Rock',
+        type: 'genre',
+        readOnly: true,
+        audioCount: 2,
+        artistCount: 0,
+        playlistCount: 0,
+      },
+      {
+        id: 6,
+        name: 'Directo',
+        type: 'free',
+        readOnly: false,
+        audioCount: 1,
+        artistCount: 0,
+        playlistCount: 0,
+      },
+    ]);
+  });
+
+  it('reads suggestion types when the API sends the type object', () => {
+    expect(
+      normalizeSuggestions([
+        { type: { id: 2, key: 'genre', name: 'Género', system: true }, value: 'Rock', count: 2 },
+      ]),
+    ).toEqual([{ type: 'genre', value: 'Rock', count: 2 }]);
   });
 });

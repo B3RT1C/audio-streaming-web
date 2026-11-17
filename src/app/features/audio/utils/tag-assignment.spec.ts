@@ -34,6 +34,18 @@ describe('tag assignment', () => {
     ]);
   });
 
+  it('reads a nested type object the same way as a key', () => {
+    expect(
+      normalizeAssignedTags([
+        {
+          name: 'Rock',
+          readOnly: true,
+          type: { id: 2, key: 'genre', name: 'Género', system: true },
+        },
+      ]),
+    ).toEqual([{ name: 'Rock', type: 'genre', readOnly: true }]);
+  });
+
   it('ignores a read-only tag even when its type would otherwise be editable', () => {
     expect(
       assignmentPayload([

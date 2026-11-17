@@ -4,6 +4,7 @@
 
 .shell {
   min-height: 100dvh;
+  overflow-x: clip;
 }
 
 .stage {
@@ -26,9 +27,18 @@
 
   h1 {
     margin: 0;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-size: 1.85rem;
     letter-spacing: -0.04em;
     line-height: 1.05;
+  }
+
+  > div {
+    min-width: 0;
   }
 }
 
@@ -133,9 +143,11 @@
 .playlist-card {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 0.45rem;
   min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .card-open {
@@ -149,6 +161,8 @@
   text-align: left;
   padding: 0;
   min-height: 44px;
+  min-width: 0;
+  max-width: 100%;
   color: inherit;
 }
 
@@ -156,9 +170,14 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   margin-top: 0.55rem;
 
   &.inset {
+    width: auto;
+    max-width: calc(100% - 3.6rem);
     margin: 0.15rem 0 0.15rem 3.6rem;
   }
 }
@@ -190,6 +209,7 @@
   align-items: center;
   gap: 0.75rem;
   width: 100%;
+  min-width: 0;
   min-height: 56px;
   border: 0;
   background: transparent;
@@ -229,12 +249,8 @@
 
   .sub {
     color: var(--text-muted);
-    font-size: 0.82rem;
+    font-size: var(--font-meta);
   }
-}
-
-.tag-row {
-  min-height: 64px;
 }
 
 .text-action {
@@ -266,7 +282,15 @@
 }
 
 .card-name {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 680;
+  font-size: var(--font-title);
 }
 
 .card-meta,
@@ -283,6 +307,7 @@
 
   input {
     flex: 1;
+    min-width: 0;
     min-height: 48px;
     border-radius: 999px;
     border: 0;
@@ -316,11 +341,23 @@
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
 }
 
+.hero-copy {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .hero-copy h1 {
   margin: 0.15rem 0 0;
+  max-width: 100%;
   font-size: clamp(1.8rem, 8vw, 2.6rem);
   letter-spacing: -0.045em;
-  line-height: 1.02;
+  line-height: 1.15;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .hero-actions {
@@ -432,7 +469,14 @@
     justify-content: center;
     gap: 0.15rem;
     min-height: 44px;
-    font-size: 0.62rem;
+    font-size: var(--font-tab);
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding-inline: 0.15rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-weight: 650;
     letter-spacing: -0.02em;
 
@@ -502,6 +546,7 @@
   .side-nav button,
   .playlist-chip {
     width: 100%;
+    min-width: 0;
     min-height: 44px;
     border: 0;
     border-radius: 8px;
@@ -512,7 +557,21 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 0.5rem;
     font-weight: 650;
+    overflow: hidden;
+  }
+
+  .side-name {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .chip-count {
+    flex: none;
   }
 
   .side-nav button.active,

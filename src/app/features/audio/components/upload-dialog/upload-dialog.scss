@@ -10,7 +10,11 @@
   min-inline-size: 0;
 
   legend {
+    max-width: 100%;
     padding: 0 0.3rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     color: var(--text-muted);
     font-size: 0.78rem;
   }

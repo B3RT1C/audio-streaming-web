@@ -54,11 +54,11 @@
               {{ cover(coverSeed(row.entry)).initials }}
             </span>
             <span class="meta">
-              <span class="title">{{ row.entry.track ? titleOf(row.entry.track) : 'Canción no disponible' }}</span>
+              <span class="title" [attr.title]="row.entry.track ? titleOf(row.entry.track) : null">{{ row.entry.track ? titleOf(row.entry.track) : 'Canción no disponible' }}</span>
               @if (row.entry.track && secondaryOf(row.entry.track)) {
-                <span class="alt">{{ secondaryOf(row.entry.track) }}</span>
+                <span class="alt" [attr.title]="secondaryOf(row.entry.track)">{{ secondaryOf(row.entry.track) }}</span>
               }
-              <span class="sub">{{ row.entry.track ? (subtitleOf(row.entry.track) || 'Sin artista') : 'Ya no está en la biblioteca' }}</span>
+              <span class="sub" [attr.title]="row.entry.track ? (subtitleOf(row.entry.track) || null) : null">{{ row.entry.track ? (subtitleOf(row.entry.track) || 'Sin artista') : 'Ya no está en la biblioteca' }}</span>
             </span>
             <span class="dur">{{ row.entry.track ? clock(row.entry.track.durationSeconds) : '—' }}</span>
           </button>
@@ -78,9 +78,10 @@
               <button
                 type="button"
                 class="tag-chip"
+                [attr.title]="tag"
                 [attr.aria-label]="'Filtrar por ' + tag"
                 (click)="pickTag(tag, $event)"
-              >{{ tag }}</button>
+              ><span class="chip-name">{{ tag }}</span></button>
             }
           </div>
         }
@@ -90,7 +91,7 @@
   @if (openEntry(); as entry) {
     <button type="button" class="menu-backdrop" aria-label="Cerrar menú" (click)="closeMenu()"></button>
     <div class="sheet" role="menu">
-      <p class="sheet-title">{{ entry.track ? titleOf(entry.track) : 'Canción' }}</p>
+      <p class="sheet-title" [attr.title]="entry.track ? titleOf(entry.track) : null">{{ entry.track ? titleOf(entry.track) : 'Canción' }}</p>
       @if (entry.track) {
         <button type="button" role="menuitem" (click)="requestEdit(entry.track)">Editar</button>
       }

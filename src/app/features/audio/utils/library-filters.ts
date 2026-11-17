@@ -4,6 +4,7 @@ import {
   parseFilterToken,
   sameFilterToken,
   serializeFilterToken,
+  typeLabel,
   uniqueTokens,
 } from './filter-tokens';
 
@@ -158,7 +159,7 @@ export function libraryChips(filters: LibraryFilters): FilterChip[] {
   }
   for (const token of tokensOf(filters)) {
     const serialized = serializeFilterToken(token);
-    chips.push({ group: 'library', key: 'f', value: serialized, label: serialized, type: token.type });
+    chips.push({ group: 'library', key: 'f', value: serialized, label: readableTokenLabel(token), type: token.type });
   }
   return chips;
 }
@@ -313,6 +314,13 @@ function appendTags(params: URLSearchParams, key: string, tags: readonly string[
 
 function tokensOf(filters: LibraryFilters): FilterToken[] {
   return uniqueTokens(filters.tokens);
+}
+
+function readableTokenLabel(token: FilterToken): string {
+  if (token.type === 'free') {
+    return token.value;
+  }
+  return `${typeLabel(token.type)} · ${token.value}`;
 }
 
 function sameTokenList(left: readonly FilterToken[], right: readonly FilterToken[]): boolean {

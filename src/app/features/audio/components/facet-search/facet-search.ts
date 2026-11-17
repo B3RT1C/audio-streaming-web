@@ -40,9 +40,7 @@ export class FacetSearch {
   readonly tokens = input<FilterToken[]>([]);
   readonly suggestions = input<FilterSuggestion[]>([]);
   readonly types = input<TagType[]>([]);
-  readonly placeholder = input(
-    'Buscar título, título secundario, artista, álbum… o artista:, género:, #etiqueta',
-  );
+  readonly placeholder = input('Buscar o filtrar: género:, año:, #etiqueta');
 
   readonly queryChange = output<string>();
   readonly committed = output<{ q: string; tokens: FilterToken[] }>();
@@ -67,8 +65,12 @@ export class FacetSearch {
     });
   }
 
-  chipLabel(token: FilterToken): string {
+  tokenKey(token: FilterToken): string {
     return serializeFilterToken(token);
+  }
+
+  chipKind(token: FilterToken): string {
+    return typeLabel(token.type, this.types());
   }
 
   chipColor(type: string): string {

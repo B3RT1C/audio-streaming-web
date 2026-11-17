@@ -56,6 +56,7 @@
   background: transparent;
   text-align: left;
   padding: 0.4rem 0.2rem 0.4rem 0.15rem;
+  overflow: hidden;
 
   &:disabled {
     cursor: default;
@@ -82,10 +83,14 @@
   display: flex;
   flex-direction: column;
   gap: 0.12rem;
+  overflow: hidden;
 }
 
 .title,
+.alt,
 .sub {
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -94,7 +99,7 @@
 .title {
   color: #fff;
   font-weight: 650;
-  font-size: 0.98rem;
+  font-size: var(--font-title);
 }
 
 .alt {
@@ -106,19 +111,16 @@
 .sub,
 .dur {
   color: var(--text-muted);
-  font-size: 0.82rem;
+  font-size: var(--font-meta);
 }
 
 .chips {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.35rem;
-  overflow-x: auto;
-  padding: 0.05rem 3rem 0.5rem 3.85rem;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.15rem 0.5rem 0.55rem 3.85rem;
 }
 
 li:has(.grip) .chips {
@@ -126,12 +128,14 @@ li:has(.grip) .chips {
 }
 
 .dur {
+  flex: none;
   font-variant-numeric: tabular-nums;
   padding-right: 0.15rem;
 }
 
 .more,
 .grip {
+  flex: none;
   border: 0;
   background: transparent;
   color: var(--text-muted);
@@ -187,6 +191,7 @@ li:has(.grip) .chips {
   border-radius: 16px;
   padding: 0.4rem;
   box-shadow: var(--shadow);
+  overflow: hidden;
 
   button {
     display: flex;
@@ -211,6 +216,12 @@ li:has(.grip) .chips {
   padding: 0.7rem 0.9rem 0.35rem;
   color: var(--text-muted);
   font-size: 0.8rem;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .empty {
