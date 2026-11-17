@@ -1,6 +1,6 @@
 # Audio Streaming Web
 
-Cliente web del ecosistema [audio-streaming](https://github.com/B3RT1C/audio-streaming). Versión **0.4.1**.
+Cliente web del ecosistema [audio-streaming](https://github.com/B3RT1C/audio-streaming). Versión **0.4.2**.
 
 - Repo: https://github.com/B3RT1C/audio-streaming-web
 - Stack: Angular 21, TypeScript, SCSS
@@ -29,6 +29,11 @@ La interfaz queda en `http://localhost:4200`. En local, la API se pide a `http:/
 | `npm run build` | Build de producción en `dist/` |
 | `npm test` | Tests unitarios |
 | `node scripts/ci/check-api-contract.mjs` | Comprueba las rutas del cliente |
+
+## Funcionalidad 0.4.2
+
+- Mismo contrato que 0.4.1. Los chips del buscador muestran el valor y el tipo, no el token, salvo mientras se escribe.
+- La vista de etiquetas agrupa por el `key` del tipo aunque `GET /tags` envíe `type` como objeto. Los grupos grandes se pliegan y se pueden buscar, para no pintar miles de etiquetas a la vez.
 
 ## Funcionalidad 0.4.1
 
@@ -98,7 +103,7 @@ Alineado con el backend 0.4.1 (`docs/openapi.yaml` de la rama `feat/0.4.1` cuand
 | `PUT /audios/{id}/tags`, `PUT /artists/{id}/tags`, `PUT /playlists/{id}/tags` | `{ "tags": ["Gym", { "type": "language", "name": "Español" }] }`. Un string es una etiqueta libre. Un objeto asigna un tipo. Género, álbum y año no se envían: el servidor los conserva y respondería 400 si se asignan a mano |
 | `GET /audios/{id}` | Stream. Un rango fuera del fichero responde 416 `RANGE_NOT_SATISFIABLE` |
 | `POST /audios` | `file` y `name` opcional. Responde **201** `{ "message": "File received" }` **sin id**. Tras subir, la web vuelve a pedir el listado |
-| `GET /tags` y `GET /tags?type=clave` | `[{ id, name, type, readOnly, audioCount, artistCount, playlistCount }]` |
+| `GET /tags` y `GET /tags?type=clave` | `[{ id, name, type, readOnly, audioCount, artistCount, playlistCount }]`. `type` puede ser la clave (`"genre"`) o el objeto `{ id, key, name, system }`; se usa `key` |
 | `GET /tag-types` | `[{ id, key, name, system, color, conteos }]`. Los de sistema (`artist`, `genre`, `album`, `year`, `language`, `free`) no se renombran ni se borran |
 | `POST /tag-types` | `{ name, key?, color? }` crea un tipo propio |
 | `PATCH /tag-types/{id}` | `{ name }` renombra un tipo propio. Un tipo de sistema responde 409 |

@@ -78,9 +78,10 @@
               <button
                 type="button"
                 class="tag-chip"
+                [attr.title]="tag"
                 [attr.aria-label]="'Filtrar por ' + tag"
                 (click)="pickTag(tag, $event)"
-              >{{ tag }}</button>
+              ><span class="chip-name">{{ tag }}</span></button>
             }
           </div>
         }

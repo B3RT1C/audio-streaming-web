@@ -50,6 +50,23 @@ export function foldAccents(value: string): string {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase();
 }
 
+/**
+ * A type field may be the key (`"genre"`) or the object GET /tags returns
+ * (`{ id, key, name, system }`). Only `key` is the catalog id.
+ */
+export function typeKeyOf(raw: unknown): string {
+  if (typeof raw === 'string') {
+    return raw.trim();
+  }
+  if (raw !== null && typeof raw === 'object' && !Array.isArray(raw)) {
+    const key = (raw as { key?: unknown }).key;
+    if (typeof key === 'string') {
+      return key.trim();
+    }
+  }
+  return '';
+}
+
 export function isDerivedType(type: string): boolean {
   return (DERIVED_TYPE_KEYS as readonly string[]).includes(type);
 }

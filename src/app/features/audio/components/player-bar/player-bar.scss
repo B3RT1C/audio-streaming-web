@@ -94,6 +94,7 @@ svg {
 .q-title {
   color: #fff;
   font-weight: 680;
+  font-size: var(--font-title);
 }
 
 .title-line .title {
@@ -113,7 +114,7 @@ svg {
 .sub,
 .q-sub {
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: var(--font-meta);
 }
 
 .shuffle-flag {

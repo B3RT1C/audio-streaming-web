@@ -7,6 +7,17 @@ interface TypeBlock {
   tags: TagSummary[];
 }
 
+interface ShownBlock extends TypeBlock {
+  open: boolean;
+  matchCount: number;
+  visible: TagSummary[];
+  hidden: number;
+}
+
+/** Groups larger than this start closed so a few thousand tags are not painted at once. */
+const COLLAPSE_AFTER = 12;
+const PAGE = 24;
+
 @Component({
   selector: 'app-tag-types-view',
   templateUrl: './tag-types-view.html',
@@ -29,12 +40,33 @@ export class TagTypesView {
   readonly renamingId = signal<number | null>(null);
   readonly renameValue = signal('');
   readonly formError = signal('');
+  readonly query = signal('');
+  readonly menuId = signal<number | null>(null);
+  readonly expanded = signal<Readonly<Record<string, boolean>>>({});
+  readonly limits = signal<Readonly<Record<string, number>>>({});
 
   readonly systemBlocks = computed(() => this.blocks(true));
   readonly customBlocks = computed(() => this.blocks(false));
+  readonly systemShown = computed(() => this.present(this.systemBlocks()));
+  readonly customShown = computed(() => this.present(this.customBlocks()));
+  readonly nothingMatches = computed(
+    () => this.query().trim().length > 0 && this.systemShown().length === 0 && this.customShown().length === 0,
+  );
 
   tone(type: TagType): string {
     return typeColor(type.key, [type]);
+  }
+
+  etiquetaCount(count: number): string {
+    return count === 1 ? '1 etiqueta' : `${groupedCount(count)} etiquetas`;
+  }
+
+  formatCount(count: number): string {
+    return groupedCount(count);
+  }
+
+  canFold(count: number): boolean {
+    return count > COLLAPSE_AFTER;
   }
 
   onName(event: Event): void {
@@ -54,6 +86,10 @@ export class TagTypesView {
     this.color.set((event.target as HTMLInputElement).value);
   }
 
+  onQuery(event: Event): void {
+    this.query.set((event.target as HTMLInputElement).value);
+  }
+
   create(event: Event): void {
     event.preventDefault();
     const name = this.name().trim().replace(/\s+/g, ' ');
@@ -70,6 +106,7 @@ export class TagTypesView {
   }
 
   startRename(type: TagType): void {
+    this.menuId.set(null);
     if (type.system) {
       return;
     }
@@ -96,6 +133,7 @@ export class TagTypesView {
   }
 
   remove(type: TagType): void {
+    this.menuId.set(null);
     if (type.system || this.busy()) {
       return;
     }
@@ -105,7 +143,46 @@ export class TagTypesView {
     this.deleteType.emit(type);
   }
 
+  toggleMenu(id: number): void {
+    this.menuId.update((current) => (current === id ? null : id));
+  }
+
+  toggleGroup(type: TagType, total: number): void {
+    const open = this.expanded()[type.key] ?? total <= COLLAPSE_AFTER;
+    this.expanded.update((current) => ({ ...current, [type.key]: !open }));
+  }
+
+  showMore(key: string): void {
+    this.limits.update((current) => ({ ...current, [key]: (current[key] ?? PAGE) + PAGE }));
+  }
+
   private keyEdited = false;
+
+  private present(blocks: TypeBlock[]): ShownBlock[] {
+    const query = this.query().trim().toLocaleLowerCase();
+    const expanded = this.expanded();
+    const limits = this.limits();
+    const shown: ShownBlock[] = [];
+    for (const block of blocks) {
+      const matched = query
+        ? block.tags.filter((tag) => tag.name.toLocaleLowerCase().includes(query))
+        : block.tags;
+      if (query && matched.length === 0) {
+        continue;
+      }
+      const open = query ? true : (expanded[block.type.key] ?? block.tags.length <= COLLAPSE_AFTER);
+      const limit = limits[block.type.key] ?? PAGE;
+      const visible = open ? matched.slice(0, limit) : [];
+      shown.push({
+        ...block,
+        open,
+        matchCount: matched.length,
+        visible,
+        hidden: Math.max(0, matched.length - visible.length),
+      });
+    }
+    return shown;
+  }
 
   private blocks(system: boolean): TypeBlock[] {
     const tags = this.tags();
@@ -124,6 +201,10 @@ export class TagTypesView {
     const index = SYSTEM_TYPE_ORDER.indexOf(type.key as (typeof SYSTEM_TYPE_ORDER)[number]);
     return index === -1 ? SYSTEM_TYPE_ORDER.length : index;
   }
+}
+
+function groupedCount(count: number): string {
+  return String(Math.max(0, Math.trunc(count))).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
 function slug(value: string): string {

@@ -19,15 +19,17 @@ import { layoutRows, visibleRange } from '../../utils/virtual-window';
 export const VIRTUAL_THRESHOLD = 100;
 const ROW_BASE = 76;
 const ROW_ALT = 18;
-const ROW_TAGS = 42;
+const TAGS_PER_LINE = 2;
+const TAG_LINE = 40;
 
 export function trackRowHeight(entry: TrackRow): number {
   let height = ROW_BASE;
   if (entry.track?.secondaryTitle?.trim()) {
     height += ROW_ALT;
   }
-  if ((entry.track?.tags.length ?? 0) > 0) {
-    height += ROW_TAGS;
+  const tagCount = entry.track?.tags.length ?? 0;
+  if (tagCount > 0) {
+    height += 8 + Math.ceil(tagCount / TAGS_PER_LINE) * TAG_LINE;
   }
   return height;
 }

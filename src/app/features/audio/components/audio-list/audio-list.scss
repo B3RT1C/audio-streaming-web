@@ -94,7 +94,7 @@
 .title {
   color: #fff;
   font-weight: 650;
-  font-size: 0.98rem;
+  font-size: var(--font-title);
 }
 
 .alt {
@@ -106,19 +106,14 @@
 .sub,
 .dur {
   color: var(--text-muted);
-  font-size: 0.82rem;
+  font-size: var(--font-meta);
 }
 
 .chips {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.35rem;
-  overflow-x: auto;
-  padding: 0.05rem 3rem 0.5rem 3.85rem;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar {
-    display: none;
-  }
+  padding: 0.15rem 0.5rem 0.55rem 3.85rem;
 }
 
 li:has(.grip) .chips {

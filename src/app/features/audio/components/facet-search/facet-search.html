@@ -1,19 +1,24 @@
 <div class="facet">
-  <label class="facet-label">
-    <span class="visually-hidden">Buscar en la biblioteca</span>
-    <div class="facet-box">
-      @for (token of tokens(); track chipLabel(token)) {
+  <div class="facet-box">
+    @for (token of tokens(); track tokenKey(token)) {
+      <span class="facet-chip" [style.--tone]="chipColor(token.type)" [attr.title]="chipKind(token)">
+        <span class="swatch" aria-hidden="true"></span>
+        <span class="chip-copy">
+          <span class="chip-value">{{ token.value }}</span>
+          <span class="chip-kind">{{ chipKind(token) }}</span>
+        </span>
         <button
           type="button"
-          class="facet-chip"
-          [style.--tone]="chipColor(token.type)"
-          [attr.aria-label]="'Quitar ' + chipLabel(token)"
+          class="chip-remove"
+          [attr.aria-label]="'Quitar ' + chipKind(token) + ' ' + token.value"
           (click)="remove(token)"
         >
-          <span>{{ chipLabel(token) }}</span>
           <span aria-hidden="true">×</span>
         </button>
-      }
+      </span>
+    }
+    <label class="facet-field">
+      <span class="visually-hidden">Buscar en la biblioteca</span>
       <input
         type="search"
         role="combobox"
@@ -27,8 +32,8 @@
         (blur)="onBlur()"
         (keydown)="onKey($event)"
       >
-    </div>
-  </label>
+    </label>
+  </div>
   @if (open() && groups().length) {
     <div class="facet-menu" role="listbox" aria-label="Sugerencias de filtro">
       @for (group of groups(); track group.type) {
@@ -45,14 +50,20 @@
             [attr.aria-selected]="active() === item.index"
             (mousedown)="$event.preventDefault(); pick(item.row)"
           >
-            @if (item.row.kind === 'prefix') {
-              <span>{{ item.row.insert === '#' ? '#' : item.row.insert + ':' }}</span>
-            } @else {
-              <span>{{ item.row.type === 'free' ? '#' + item.row.value : item.row.value }}</span>
-              @if (item.row.count) {
-                <span class="facet-count">{{ item.row.count }}</span>
+            <span class="option-label">
+              @if (item.row.kind === 'prefix') {
+                {{ item.row.insert === '#' ? '#etiqueta' : item.row.insert + ':' }}
+              } @else {
+                {{ item.row.value }}
               }
-            }
+            </span>
+            <span class="option-meta">
+              @if (item.row.kind === 'prefix') {
+                {{ item.row.label }}
+              } @else if (item.row.count) {
+                {{ item.row.count }}
+              }
+            </span>
           </button>
         }
       }

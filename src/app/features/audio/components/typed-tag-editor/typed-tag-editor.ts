@@ -45,6 +45,13 @@ export class TypedTagEditor {
     return isTagLocked(tag);
   }
 
+  addPlaceholder(group: TagGroup): string {
+    if (group.type === 'free') {
+      return 'Añadir etiqueta';
+    }
+    return `Añadir ${group.label.toLocaleLowerCase()}`;
+  }
+
   onDraft(type: string, event: Event): void {
     if (this.groupLocked(type)) {
       return;

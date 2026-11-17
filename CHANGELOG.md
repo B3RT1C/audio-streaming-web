@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.2
+
+- Pulido visual: chips del buscador con el valor en texto legible y el tipo como etiqueta, input en su propia línea, autocompletado con la misma tipografía y etiquetas derivadas completas en el editor.
+- La pestaña inferior dice Etiquetas. La clave de un tipo propio se genera desde el nombre y queda en opciones avanzadas.
+- `GET /tags` puede traer `type` como objeto `{ id, key, name, system }`. La vista agrupa por `type.key` y no pinta de golpe los miles de etiquetas de género, álbum o año.
+
 ## 0.4.1
 
 - Buscador unificado con prefijos (`artista:`, `género:`, `álbum:`, `año:`, `idioma:`, `playlist:`, la clave de un tipo propio y `#etiqueta`), autocompletado agrupado por tipo y chips de color.

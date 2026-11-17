@@ -1,5 +1,5 @@
 import { asNumber, asString, isRecord } from '../utils/json';
-import { canonicalType } from '../utils/filter-tokens';
+import { canonicalType, typeKeyOf } from '../utils/filter-tokens';
 import { AssignedTag, assignedNames, normalizeAssignedTags } from '../utils/tag-assignment';
 
 /** GET /artists row. The name matches audio.artist exactly, including case and spaces. */
@@ -90,7 +90,7 @@ export function normalizeTagSummary(raw: unknown): TagSummary | null {
   if (id == null || !name) {
     return null;
   }
-  const type = canonicalType(asString(raw['type']) ?? asString(raw['typeKey']) ?? 'free');
+  const type = canonicalType(typeKeyOf(raw['type']) || typeKeyOf(raw['typeKey']) || 'free');
   return {
     id,
     name,
@@ -147,7 +147,9 @@ export function normalizeSuggestions(raw: unknown): FilterSuggestion[] {
     if (!value) {
       continue;
     }
-    const type = canonicalType(asString(entry['type']) ?? asString(entry['typeKey']) ?? asString(entry['prefix']) ?? 'free');
+    const type = canonicalType(
+      typeKeyOf(entry['type']) || typeKeyOf(entry['typeKey']) || typeKeyOf(entry['prefix']) || 'free',
+    );
     result.push({
       type,
       value,

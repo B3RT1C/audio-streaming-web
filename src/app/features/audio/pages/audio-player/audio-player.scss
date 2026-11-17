@@ -229,12 +229,8 @@
 
   .sub {
     color: var(--text-muted);
-    font-size: 0.82rem;
+    font-size: var(--font-meta);
   }
-}
-
-.tag-row {
-  min-height: 64px;
 }
 
 .text-action {
@@ -266,7 +262,12 @@
 }
 
 .card-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-weight: 680;
+  font-size: var(--font-title);
 }
 
 .card-meta,
@@ -321,6 +322,7 @@
   font-size: clamp(1.8rem, 8vw, 2.6rem);
   letter-spacing: -0.045em;
   line-height: 1.02;
+  overflow-wrap: anywhere;
 }
 
 .hero-actions {
@@ -432,7 +434,10 @@
     justify-content: center;
     gap: 0.15rem;
     min-height: 44px;
-    font-size: 0.62rem;
+    font-size: var(--font-tab);
+    max-width: 100%;
+    padding-inline: 0.1rem;
+    white-space: nowrap;
     font-weight: 650;
     letter-spacing: -0.02em;
 
