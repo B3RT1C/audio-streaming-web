@@ -102,4 +102,12 @@ describe('PlaylistService', () => {
     req.flush({ id: 3, name: 'Noche', itemCount: 0, items: [], tags: ['Live'] });
     expect(names).toEqual(['Live']);
   });
+
+  it('filters playlists by name and every tag', () => {
+    service.list('Viaje', ['Noche', 'Pop']).subscribe();
+    const filtered = http.expectOne((request) => request.url === config.url('/playlists'));
+    expect(filtered.request.params.get('q')).toBe('Viaje');
+    expect(filtered.request.params.getAll('tag')).toEqual(['Noche', 'Pop']);
+    filtered.flush([]);
+  });
 });

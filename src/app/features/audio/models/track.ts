@@ -3,7 +3,8 @@ import { normalizeTagNames } from './tags';
 
 /**
  * Catalog row. 0.1 fields stay. 0.2 adds title, artist, album, duration and
- * track number. 0.3 adds secondaryTitle and tags. Adjust `normalizeTrack` if
+ * track number. 0.3 adds secondaryTitle and tags. 0.4 filters are query
+ * parameters, not new fields on the track. Adjust `normalizeTrack` if
  * the wire names move.
  */
 export interface Track {

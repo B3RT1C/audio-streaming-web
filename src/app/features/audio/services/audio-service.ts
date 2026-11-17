@@ -4,6 +4,13 @@ import { Observable } from 'rxjs';
 import { filter, map } from 'rxjs/operators';
 import { RuntimeConfigService } from '../../../core/runtime-config.service';
 import { API_PATHS, normalizeTrack, normalizeTrackList, Track, TrackMetadataPatch } from '../models/track';
+import {
+  audioSearchParams,
+  emptyLibraryFilters,
+  LibraryFilters,
+  ShuffleRequest,
+  uniqueTags,
+} from '../utils/library-filters';
 
 export interface AudioResponse {
   message: string;
@@ -24,21 +31,23 @@ export class AudioService {
   private config = inject(RuntimeConfigService);
 
   /**
-   * `q` and `tag` combine: a track must match both. Blank values are omitted
-   * so the request stays a plain GET /audios.
+   * Every filter combines with AND. A string `query` is the 0.3 `q` search,
+   * and `tag` is one song tag. Pass a {@link LibraryFilters} for the 0.4 fields.
+   * Blank values are omitted so an empty filter stays a plain GET /audios.
    */
-  list(query = '', tag = ''): Observable<Track[]> {
-    let params = new HttpParams();
-    const q = query.trim();
-    const tagName = tag.trim();
-    if (q) {
-      params = params.set('q', q);
-    }
-    if (tagName) {
-      params = params.set('tag', tagName);
-    }
+  list(query: string | LibraryFilters = '', tag = ''): Observable<Track[]> {
+    const filters = typeof query === 'string' ? legacyFilters(query, tag) : normalizeFilters(query);
+    return this.fetch(filters);
+  }
+
+  /** Same filters as `list`, plus shuffle=true and an optional integer seed. */
+  listShuffled(filters: LibraryFilters, seed?: number): Observable<Track[]> {
+    return this.fetch(normalizeFilters(filters), Number.isInteger(seed) ? { seed } : {});
+  }
+
+  private fetch(filters: LibraryFilters, shuffle?: ShuffleRequest): Observable<Track[]> {
     return this.http
-      .get<unknown>(this.audiosUrl(), { params })
+      .get<unknown>(this.audiosUrl(), { params: toHttpParams(audioSearchParams(filters, shuffle)) })
       .pipe(map((body) => normalizeTrackList(body)));
   }
 
@@ -83,6 +92,29 @@ export class AudioService {
   private audiosUrl(): string {
     return this.config.url(API_PATHS.audios);
   }
+}
+
+function legacyFilters(query: string, tag: string): LibraryFilters {
+  return { ...emptyLibraryFilters(), q: query, tags: tag.trim() ? [tag] : [] };
+}
+
+function normalizeFilters(filters: LibraryFilters): LibraryFilters {
+  return {
+    q: filters.q,
+    title: filters.title,
+    artist: filters.artist,
+    tags: uniqueTags(filters.tags),
+    artistTags: uniqueTags(filters.artistTags),
+    playlistTags: uniqueTags(filters.playlistTags),
+  };
+}
+
+function toHttpParams(search: URLSearchParams): HttpParams {
+  let params = new HttpParams();
+  search.forEach((value, key) => {
+    params = params.append(key, value);
+  });
+  return params;
 }
 
 function toUploadProgress(event: HttpEvent<AudioResponse>): UploadProgressEvent | null {

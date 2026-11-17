@@ -19,6 +19,9 @@ export class TagEditor {
 
   readonly tags = input<string[]>([]);
   readonly suggestions = input<string[]>([]);
+  readonly allowCreate = input(true);
+  readonly placeholder = input('Añadir etiqueta');
+  readonly label = input('Añadir etiqueta');
 
   readonly tagsChange = output<string[]>();
 
@@ -36,7 +39,7 @@ export class TagEditor {
     const exact = pool.some((name) => name.toLocaleLowerCase() === query);
     const already = selected.some((tag) => sameTag(tag, typed));
     const options: TagOption[] = matches.map((name) => ({ kind: 'existing', name }));
-    if (typed && !exact && !already && typed.length <= MAX_LENGTH) {
+    if (this.allowCreate() && typed && !exact && !already && typed.length <= MAX_LENGTH) {
       options.push({ kind: 'create', name: typed });
     }
     return options.slice(0, 8);

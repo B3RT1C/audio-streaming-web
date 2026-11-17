@@ -43,4 +43,17 @@ describe('CatalogService', () => {
     expect(replaced.request.body).toEqual({ tags: [] });
     replaced.flush({ id: 4, name: 'José', audioCount: 9, tags: [] });
   });
+
+  it('filters artists by name and every tag', () => {
+    service.listArtists('  ', []).subscribe();
+    const plain = http.expectOne(config.url('/artists'));
+    expect(plain.request.params.keys().length).toBe(0);
+    plain.flush([]);
+
+    service.listArtists('Sol', ['Jazz', 'Pop']).subscribe();
+    const filtered = http.expectOne((request) => request.url === config.url('/artists'));
+    expect(filtered.request.params.get('q')).toBe('Sol');
+    expect(filtered.request.params.getAll('tag')).toEqual(['Jazz', 'Pop']);
+    filtered.flush([]);
+  });
 });

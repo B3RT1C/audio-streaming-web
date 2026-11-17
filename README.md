@@ -1,6 +1,6 @@
 # Audio Streaming Web
 
-Cliente web del ecosistema [audio-streaming](https://github.com/B3RT1C/audio-streaming). Versión **0.3.0**.
+Cliente web del ecosistema [audio-streaming](https://github.com/B3RT1C/audio-streaming). Versión **0.4.0**.
 
 - Repo: https://github.com/B3RT1C/audio-streaming-web
 - Stack: Angular 21, TypeScript, SCSS
@@ -30,15 +30,18 @@ La interfaz queda en `http://localhost:4200`. En local, la API se pide a `http:/
 | `npm test` | Tests unitarios |
 | `node scripts/ci/check-api-contract.mjs` | Comprueba las rutas del cliente |
 
-## Funcionalidad 0.3.0
+## Funcionalidad 0.4.0
 
 - Biblioteca con título, título secundario, artista, álbum, número de pista, duración y etiquetas
 - Buscador con espera de 300 ms (`GET /audios?q=`). También busca en el título secundario
-- Filtro por etiqueta (`GET /audios?tag=`), combinable con la búsqueda
+- Panel de filtros en la biblioteca (plegable en el móvil): título, artista, etiquetas de canción, de artista y de lista. Se combinan entre sí y con la búsqueda. Los filtros activos se ven como chips quitables y hay un botón para limpiarlos
+- La vista filtrada queda en la query string, así se puede recargar o compartir
+- Filtro por nombre y por etiquetas en Playlists y en Artistas
 - Edición de título, título secundario, artista, álbum, número de pista y etiquetas
 - Vista de artistas (conteo y etiquetas) y vista de etiquetas
 - Listas: crear, renombrar, borrar, etiquetar, añadir, quitar y reordenar
-- Reproducir la biblioteca o una lista, con cola, anterior, siguiente, aleatorio y repetir
+- Reproducir la biblioteca, el resultado filtrado o una lista. El botón Aleatorio baraja esa lista completa en el cliente, con una semilla, sin repetir canciones hasta acabarla
+- El reproductor sigue pudiendo mezclar la cola y repetir una o todas. Si el aleatorio está activo se indica en el reproductor
 - Barra de progreso con salto
 - Controles de la pantalla de bloqueo (Media Session), cuando el navegador lo permite
 - Subida con barra de progreso, hasta 500 MB, y aviso si el archivo no es audio o se pasa del límite
@@ -69,25 +72,26 @@ La página y el API siguen yendo en orígenes distintos (por ejemplo la web en e
 
 ## Contrato que consume esta versión
 
-Alineado con el backend 0.3.0 (`docs/openapi.yaml` de la rama `feat/0.3.0`). Si un nombre cambia, el ajuste está en un solo sitio:
+Alineado con el backend 0.4.0 (`docs/openapi.yaml` de la rama `feat/0.4.0` cuando esté publicada; el contrato de esta entrega está descrito aquí). Si un nombre cambia, el ajuste está en un solo sitio:
 
 - Canciones: `src/app/features/audio/models/track.ts` (`normalizeTrack`)
 - Listas: `src/app/features/audio/models/playlist.ts` (`normalizePlaylist`)
 - Artistas y etiquetas: `src/app/features/audio/models/catalog.ts`
+- Filtros y query string: `src/app/features/audio/utils/library-filters.ts`
 - Cuerpos de las peticiones: `audio-service.ts`, `playlist-service.ts` y `catalog-service.ts`
 - Textos de error: `src/app/features/audio/utils/api-error.ts`
 
 | Petición | Cuerpo / respuesta |
 |----------|--------------------|
-| `GET /audios`, `GET /audios?q=` y `GET /audios?tag=` | Array de canciones. `q` y `tag` se combinan. Cada canción trae `secondaryTitle` (`string` o `null`) y `tags` |
+| `GET /audios` | Array de canciones. `q`, `title`, `artist`, `tag` (repetible), `artistTag` (repetible) y `playlistTag` (repetible) se combinan con AND. Los vacíos no se envían. `title` es subcadena de `title` o `secondaryTitle`. `shuffle=true` y `seed` entero opcional piden un orden aleatorio determinista, aplicado después de filtrar. Cada canción trae `secondaryTitle` (`string` o `null`) y `tags` |
 | `PATCH /audios/{id}` | Solo los campos a cambiar. `secondaryTitle` en blanco se envía como `null` y se borra. Si `title` no se edita, no se envía. Un campo `tags` en el PATCH se ignora |
 | `PUT /audios/{id}/tags` | `{ "tags": ["Live"] }` sustituye el conjunto. `[]` las quita. Responde la canción |
 | `GET /audios/{id}` | Stream. Un rango fuera del fichero responde 416 `RANGE_NOT_SATISFIABLE` |
 | `POST /audios` | `file` y `name` opcional. Responde **201** `{ "message": "File received" }` **sin id**. Tras subir, la web vuelve a pedir el listado |
-| `GET /tags` | `[{ id, name, audioCount, artistCount, playlistCount }]` |
-| `GET /artists` | `[{ id, name, audioCount, tags }]`. No hay alta de artistas: salen del texto `artist` de las canciones |
+| `GET /tags` | `[{ id, name, audioCount, artistCount, playlistCount }]`. El autocompletado de los filtros sale de aquí |
+| `GET /artists` y `GET /artists?q=&tag=` | `[{ id, name, audioCount, tags }]`. `q` y cada `tag` se combinan. No hay alta de artistas: salen del texto `artist` de las canciones |
 | `PUT /artists/{id}/tags` | `{ "tags": [...] }` sustituye las etiquetas del artista |
-| `GET /playlists` | Resúmenes `{ id, name, createdAt, updatedAt, itemCount, tags }` **sin** `items` |
+| `GET /playlists` y `GET /playlists?q=&tag=` | Resúmenes `{ id, name, createdAt, updatedAt, itemCount, tags }` **sin** `items`. `q` y cada `tag` se combinan |
 | `POST /playlists` | `{ name }`. 201 con `items: []` |
 | `GET /playlists/{id}` | Detalle. `items` es `[{ position, audioId, audio }]`. `audio` incluye `secondaryTitle` y `tags`. `position` empieza en 1 y puede tener huecos |
 | `PATCH /playlists/{id}` | `{ name }`. Responde la playlist con sus items |
@@ -96,7 +100,7 @@ Alineado con el backend 0.3.0 (`docs/openapi.yaml` de la rama `feat/0.3.0`). Si 
 | `DELETE /playlists/{id}/items/{audioId}` | 204 |
 | `PUT /playlists/{id}/items` | `{ "audioIds": [3, 1, 8] }` con exactamente las canciones actuales, cada una una vez |
 
-Los errores son `{ "message", "code" }`. Esta web traduce `FILE_TOO_LARGE` (413), `INVALID_FILE`, `INVALID_ORDER` (400) y `RANGE_NOT_SATISFIABLE` (416). La lista de reproducción se ordena por `position`, así que un hueco no cambia el orden ni se confunde con el número de canciones.
+Los errores son `{ "message", "code" }`. Esta web traduce `FILE_TOO_LARGE` (413), `INVALID_FILE`, `INVALID_ORDER` (400), `INVALID_QUERY` (400, filtro o semilla mal formados) y `RANGE_NOT_SATISFIABLE` (416). La lista de reproducción se ordena por `position`, así que un hueco no cambia el orden ni se confunde con el número de canciones.
 
 ## PWA
 

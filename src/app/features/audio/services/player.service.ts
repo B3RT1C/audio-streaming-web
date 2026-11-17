@@ -3,10 +3,13 @@ import { Track, trackSecondary, trackTitle } from '../models/track';
 import {
   advance,
   createQueueCursor,
+  mulberry32,
   nextRepeatMode,
   QueueCursor,
+  randomSeed,
   RepeatMode,
   replaceQueue,
+  shuffledIndices,
   withShuffle,
 } from '../utils/playback-queue';
 import { playbackErrorMessage } from '../utils/api-error';
@@ -99,6 +102,27 @@ export class PlayerService {
     this.cursorState.set(
       replaceQueue(tracks.length, startIndex, this.cursorState(), Math.random),
     );
+    this.error.set('');
+    this.loadCurrent(true);
+  }
+
+  /**
+   * Plays `tracks` in a deterministic random order. The current track stays
+   * first in that order, and nothing repeats until every track has played.
+   */
+  playShuffled(tracks: Track[], seed: number = randomSeed()): void {
+    if (tracks.length === 0) {
+      return;
+    }
+    const order = shuffledIndices(tracks.length, -1, mulberry32(seed >>> 0));
+    this.queue.set(tracks);
+    this.cursorState.set({
+      index: order[0] ?? 0,
+      shuffle: true,
+      repeat: this.cursorState().repeat,
+      order,
+      cursor: 0,
+    });
     this.error.set('');
     this.loadCurrent(true);
   }
@@ -218,6 +242,12 @@ export class PlayerService {
       return 'Repetir todo';
     }
     return 'Sin repetición';
+  }
+
+  shuffleLabel(): string {
+    return this.shuffle()
+      ? 'Aleatorio activo. Sin repetir hasta acabar la cola'
+      : 'Aleatorio';
   }
 
   private onEnded(): void {

@@ -94,6 +94,23 @@ export function advance(
   return step(cursor, length, reason === 'previous' ? -1 : 1, random);
 }
 
+/** Positive 31-bit seed for GET /audios?shuffle=true&seed= and for the client shuffle. */
+export function randomSeed(): number {
+  return Math.floor(Math.random() * 0x7fffffff);
+}
+
+/** Deterministic unit-interval generator. The same seed always yields the same sequence. */
+export function mulberry32(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 export function shuffledIndices(
   length: number,
   startIndex: number,
@@ -139,7 +156,7 @@ function step(
       };
     }
     if (cursor.repeat === 'all' && length > 0) {
-      const reshuffled = shuffledIndices(length, -1, random);
+      const reshuffled = nextCycle(length, cursor.index, direction, random);
       const index = direction > 0 ? 0 : reshuffled.length - 1;
       return {
         cursor: { ...cursor, order: reshuffled, cursor: index, index: reshuffled[index] },
@@ -165,6 +182,31 @@ function step(
     return { cursor, restart: true, stopped: false };
   }
   return { cursor, restart: false, stopped: true };
+}
+
+/** New cycle after the queue is exhausted. The track that just played is not the next one. */
+function nextCycle(
+  length: number,
+  avoidIndex: number,
+  direction: -1 | 1,
+  random: () => number,
+): number[] {
+  const order = shuffledIndices(length, -1, random);
+  if (length <= 1 || avoidIndex < 0 || avoidIndex >= length) {
+    return order;
+  }
+  const edge = direction > 0 ? 0 : order.length - 1;
+  if (order[edge] !== avoidIndex) {
+    return order;
+  }
+  const swap =
+    direction > 0
+      ? 1 + Math.floor(random() * (order.length - 1))
+      : Math.floor(random() * (order.length - 1));
+  const current = order[edge];
+  order[edge] = order[swap];
+  order[swap] = current;
+  return order;
 }
 
 function clampIndex(startIndex: number, length: number): number {

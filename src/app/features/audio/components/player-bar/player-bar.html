@@ -8,7 +8,12 @@
         <span class="alt">{{ secondaryOf(player.current()) }}</span>
       }
     </span>
-    <span class="sub">{{ player.current() ? (subtitleOf(player.current()) || 'Biblioteca') : 'Elige una canción' }}</span>
+    <span class="sub">
+      @if (player.shuffle()) {
+        <span class="shuffle-flag">Aleatorio</span>
+      }
+      {{ player.current() ? (subtitleOf(player.current()) || 'Biblioteca') : 'Elige una canción' }}
+    </span>
   </span>
   <span
     class="play"
@@ -37,12 +42,17 @@
           <span class="alt">{{ secondaryOf(player.current()) }}</span>
         }
       </span>
-      <span class="sub">{{ player.current() ? (subtitleOf(player.current()) || 'Biblioteca') : 'Elige una canción' }}</span>
+      <span class="sub">
+      @if (player.shuffle()) {
+        <span class="shuffle-flag">Aleatorio</span>
+      }
+      {{ player.current() ? (subtitleOf(player.current()) || 'Biblioteca') : 'Elige una canción' }}
+    </span>
     </span>
   </button>
   <div class="desk-mid">
     <div class="transport">
-      <button type="button" class="icon" [class.on]="player.shuffle()" aria-label="Aleatorio" (click)="player.toggleShuffle()">
+      <button type="button" class="icon" [class.on]="player.shuffle()" [attr.aria-pressed]="player.shuffle()" [attr.aria-label]="player.shuffleLabel()" (click)="player.toggleShuffle()">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 3h5v5"/><path d="M4 7h4l12 10"/><path d="M16 21h5v-5"/><path d="M4 17h4L20 7"/></svg>
       </button>
       <button type="button" class="icon" aria-label="Anterior" (click)="player.previous()">
@@ -88,14 +98,22 @@
       @if (player.current() && secondaryOf(player.current())) {
         <p class="alt">{{ secondaryOf(player.current()) }}</p>
       }
-      <p>{{ player.current() ? (subtitleOf(player.current()) || 'Biblioteca') : 'Elige una canción' }}</p>
+      <p>
+        @if (player.shuffle()) {
+          <span class="shuffle-flag">Aleatorio</span>
+        }
+        {{ player.current() ? (subtitleOf(player.current()) || 'Biblioteca') : 'Elige una canción' }}
+      </p>
     </div>
     <label class="seek seek-lg">
       <input type="range" min="0" [max]="player.duration() || 0" [value]="player.currentTime()" [disabled]="!player.current()" aria-label="Posición de la canción" (input)="onSeek($event)">
       <span class="times"><span>{{ clock(player.currentTime()) }}</span><span>{{ clock(player.duration()) }}</span></span>
     </label>
+    @if (player.shuffle()) {
+      <p class="mode-note">Aleatorio · sin repetir hasta acabar la cola</p>
+    }
     <div class="transport transport-lg">
-      <button type="button" class="icon" [class.on]="player.shuffle()" [attr.aria-pressed]="player.shuffle()" aria-label="Aleatorio" (click)="player.toggleShuffle()">
+      <button type="button" class="icon" [class.on]="player.shuffle()" [attr.aria-pressed]="player.shuffle()" [attr.aria-label]="player.shuffleLabel()" (click)="player.toggleShuffle()">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 3h5v5"/><path d="M4 7h4l12 10"/><path d="M16 21h5v-5"/><path d="M4 17h4L20 7"/></svg>
       </button>
       <button type="button" class="icon" aria-label="Anterior" (click)="player.previous()">
@@ -119,7 +137,7 @@
       <p class="dock-error">{{ player.error() }}</p>
     }
     <div class="queue">
-      <h3>Cola</h3>
+      <h3>{{ player.shuffle() ? 'Cola aleatoria' : 'Cola' }}</h3>
       @if (player.playOrder().length === 0) {
         <p class="queue-empty">La cola está vacía.</p>
       } @else {
