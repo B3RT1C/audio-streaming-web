@@ -8,7 +8,15 @@ describe('catalog normalization', () => {
       { name: 'Sin id' },
     ]);
 
-    expect(artists).toEqual([{ id: 4, name: ' José ', audioCount: 9, tags: ['Live'] }]);
+    expect(artists).toEqual([
+      {
+        id: 4,
+        name: ' José ',
+        audioCount: 9,
+        tags: ['Live'],
+        tagItems: [{ name: 'Live', type: 'free', readOnly: false }],
+      },
+    ]);
   });
 
   it('reads tag counts independently', () => {
@@ -17,6 +25,16 @@ describe('catalog normalization', () => {
         { id: 1, name: 'Live', audioCount: 4, artistCount: 1, playlistCount: 0 },
         { id: 2, name: '   ' },
       ]),
-    ).toEqual([{ id: 1, name: 'Live', audioCount: 4, artistCount: 1, playlistCount: 0 }]);
+    ).toEqual([
+      {
+        id: 1,
+        name: 'Live',
+        type: 'free',
+        readOnly: false,
+        audioCount: 4,
+        artistCount: 1,
+        playlistCount: 0,
+      },
+    ]);
   });
 });

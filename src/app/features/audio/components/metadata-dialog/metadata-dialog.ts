@@ -1,10 +1,12 @@
 import { Component, input, OnInit, output, signal } from '@angular/core';
+import { TagSummary, TagType } from '../../models/catalog';
 import { Track, TrackEdit, trackTitle } from '../../models/track';
-import { TagEditor } from '../tag-editor/tag-editor';
+import { assignmentPayload, AssignedTag, namesToAssigned } from '../../utils/tag-assignment';
+import { TypedTagEditor } from '../typed-tag-editor/typed-tag-editor';
 
 @Component({
   selector: 'app-metadata-dialog',
-  imports: [TagEditor],
+  imports: [TypedTagEditor],
   templateUrl: './metadata-dialog.html',
   styleUrl: './metadata-dialog.scss',
 })
@@ -12,6 +14,8 @@ export class MetadataDialog implements OnInit {
   readonly track = input.required<Track>();
   readonly busy = input(false);
   readonly suggestions = input<string[]>([]);
+  readonly catalog = input<TagSummary[]>([]);
+  readonly types = input<TagType[]>([]);
 
   readonly saved = output<TrackEdit>();
   readonly cancelled = output<void>();
@@ -21,7 +25,7 @@ export class MetadataDialog implements OnInit {
   readonly artist = signal('');
   readonly album = signal('');
   readonly trackNumber = signal('');
-  readonly tags = signal<string[]>([]);
+  readonly assigned = signal<AssignedTag[]>([]);
   readonly formError = signal('');
 
   private initialTitle = '';
@@ -34,7 +38,7 @@ export class MetadataDialog implements OnInit {
     this.artist.set(track.artist ?? '');
     this.album.set(track.album ?? '');
     this.trackNumber.set(track.trackNumber == null ? '' : String(track.trackNumber));
-    this.tags.set([...track.tags]);
+    this.assigned.set(track.tagItems?.length ? [...track.tagItems] : namesToAssigned(track.tags));
   }
 
   onTitle(event: Event): void {
@@ -74,6 +78,7 @@ export class MetadataDialog implements OnInit {
     }
     this.formError.set('');
     const secondary = this.secondary().trim();
+    const assignments = assignmentPayload(this.assigned());
     this.saved.emit({
       patch: {
         ...(title !== this.initialTitle ? { title } : {}),
@@ -82,7 +87,8 @@ export class MetadataDialog implements OnInit {
         album: this.album().trim(),
         trackNumber,
       },
-      tags: this.tags(),
+      tags: assignments.map((item) => (typeof item === 'string' ? item : item.name)),
+      assignments,
     });
   }
 

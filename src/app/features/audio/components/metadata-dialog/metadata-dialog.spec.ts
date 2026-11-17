@@ -46,6 +46,7 @@ describe('MetadataDialog', () => {
           trackNumber: null,
         },
         tags: ['Pop'],
+        assignments: ['Pop'],
       },
     ]);
   });
@@ -54,7 +55,7 @@ describe('MetadataDialog', () => {
     const saved: { patch: { title?: string; secondaryTitle?: string | null }; tags: string[] }[] = [];
     component.saved.subscribe((edit) => saved.push(edit));
     component.secondary.set('   ');
-    component.tags.set([]);
+    component.assigned.set([]);
     component.save();
     expect(saved[0]?.patch.title).toBeUndefined();
     expect(saved[0]?.patch.secondaryTitle).toBeNull();

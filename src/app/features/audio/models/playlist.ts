@@ -1,5 +1,5 @@
 import { asNumber, asString, isRecord } from '../utils/json';
-import { normalizeTagNames } from './tags';
+import { AssignedTag, assignedNames, normalizeAssignedTags } from '../utils/tag-assignment';
 import { normalizeTrack, Track } from './track';
 
 /**
@@ -27,6 +27,7 @@ export interface Playlist {
    */
   items: PlaylistItem[] | null;
   tags: string[];
+  tagItems?: AssignedTag[];
 }
 
 export function normalizePlaylistList(raw: unknown): Playlist[] {
@@ -48,7 +49,8 @@ export function normalizePlaylist(raw: unknown): Playlist | null {
   const items = normalizeItems(raw['items']);
   const reported = asNumber(raw['itemCount']);
   const itemCount = items != null ? items.length : (reported ?? 0);
-  return { id, name, itemCount, items, tags: normalizeTagNames(raw['tags']) };
+  const tagItems = normalizeAssignedTags(raw['tags']);
+  return { id, name, itemCount, items, tags: assignedNames(tagItems), tagItems };
 }
 
 /** Body of POST /playlists/{id}/items: { position, audioId, audio }. */

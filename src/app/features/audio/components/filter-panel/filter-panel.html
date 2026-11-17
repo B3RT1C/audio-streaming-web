@@ -22,6 +22,8 @@
         <button
           type="button"
           class="tag-chip current"
+          [class.typed]="!!chip.type"
+          [style.--tone]="chip.type ? tone(chip.type) : null"
           [attr.aria-label]="'Quitar ' + chip.label"
           (click)="remove(chip)"
         >

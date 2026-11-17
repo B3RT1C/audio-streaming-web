@@ -5,15 +5,17 @@
       <p class="dialog-subtitle">{{ subtitle() }}</p>
     </header>
     <div class="dialog-body">
-      <app-tag-editor
+      <app-typed-tag-editor
         [tags]="current()"
         [suggestions]="suggestions()"
+        [catalog]="catalog()"
+        [types]="types()"
         (tagsChange)="current.set($event)"
-      ></app-tag-editor>
+      ></app-typed-tag-editor>
     </div>
     <footer class="dialog-actions">
       <button type="button" class="btn btn-ghost" [disabled]="busy()" (click)="cancel()">Cancelar</button>
-      <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="saved.emit(current())">
+      <button type="button" class="btn btn-primary" [disabled]="busy()" (click)="save()">
         {{ busy() ? 'Guardando…' : 'Guardar' }}
       </button>
     </footer>

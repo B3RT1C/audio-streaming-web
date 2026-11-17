@@ -1,4 +1,11 @@
 import { sameTag } from '../models/tags';
+import {
+  FilterToken,
+  parseFilterToken,
+  sameFilterToken,
+  serializeFilterToken,
+  uniqueTokens,
+} from './filter-tokens';
 
 /** Filters for GET /audios. Every field combines with AND. Blanks are omitted. */
 export interface LibraryFilters {
@@ -8,6 +15,8 @@ export interface LibraryFilters {
   tags: string[];
   artistTags: string[];
   playlistTags: string[];
+  /** Unified tokens sent as repeated `f`. Optional so older call sites stay valid. */
+  tokens?: FilterToken[];
 }
 
 /** Filters for GET /playlists and GET /artists (`q` plus repeated `tag`). */
@@ -28,9 +37,10 @@ export interface ViewState {
 
 export interface FilterChip {
   group: 'library' | 'playlists' | 'artists';
-  key: 'q' | 'title' | 'artist' | 'tag' | 'artistTag' | 'playlistTag';
+  key: 'q' | 'title' | 'artist' | 'tag' | 'artistTag' | 'playlistTag' | 'f';
   value: string;
   label: string;
+  type?: string;
 }
 
 export interface ShuffleRequest {
@@ -40,7 +50,7 @@ export interface ShuffleRequest {
 const VIEWS: readonly LibraryView[] = ['home', 'search', 'playlists', 'artists', 'tags'];
 
 export function emptyLibraryFilters(): LibraryFilters {
-  return { q: '', title: '', artist: '', tags: [], artistTags: [], playlistTags: [] };
+  return { q: '', title: '', artist: '', tags: [], artistTags: [], playlistTags: [], tokens: [] };
 }
 
 export function emptyNameTagFilters(): NameTagFilters {
@@ -82,7 +92,8 @@ export function libraryFiltersActive(filters: LibraryFilters): boolean {
       filters.artist.trim() ||
       filters.tags.length ||
       filters.artistTags.length ||
-      filters.playlistTags.length,
+      filters.playlistTags.length ||
+      tokensOf(filters).length,
   );
 }
 
@@ -99,6 +110,12 @@ export function audioSearchParams(filters: LibraryFilters, shuffle?: ShuffleRequ
   appendTags(params, 'tag', filters.tags);
   appendTags(params, 'artistTag', filters.artistTags);
   appendTags(params, 'playlistTag', filters.playlistTags);
+  for (const token of tokensOf(filters)) {
+    const serialized = serializeFilterToken(token);
+    if (serialized) {
+      params.append('f', serialized);
+    }
+  }
   if (shuffle) {
     params.set('shuffle', 'true');
     if (shuffle.seed != null && Number.isInteger(shuffle.seed)) {
@@ -139,6 +156,10 @@ export function libraryChips(filters: LibraryFilters): FilterChip[] {
   for (const tag of filters.playlistTags) {
     chips.push({ group: 'library', key: 'playlistTag', value: tag, label: `Etiqueta de lista: ${tag}` });
   }
+  for (const token of tokensOf(filters)) {
+    const serialized = serializeFilterToken(token);
+    chips.push({ group: 'library', key: 'f', value: serialized, label: serialized, type: token.type });
+  }
   return chips;
 }
 
@@ -170,7 +191,13 @@ export function withoutLibraryChip(filters: LibraryFilters, chip: FilterChip): L
   if (chip.key === 'artistTag') {
     return { ...filters, artistTags: filters.artistTags.filter((tag) => !sameTag(tag, chip.value)) };
   }
-  return { ...filters, playlistTags: filters.playlistTags.filter((tag) => !sameTag(tag, chip.value)) };
+  if (chip.key === 'playlistTag') {
+    return { ...filters, playlistTags: filters.playlistTags.filter((tag) => !sameTag(tag, chip.value)) };
+  }
+  return {
+    ...filters,
+    tokens: tokensOf(filters).filter((token) => serializeFilterToken(token) !== chip.value),
+  };
 }
 
 export function withoutNameTagChip(filters: NameTagFilters, chip: FilterChip): NameTagFilters {
@@ -187,7 +214,8 @@ export function sameLibraryFilters(left: LibraryFilters, right: LibraryFilters):
     left.artist.trim() === right.artist.trim() &&
     sameTagList(left.tags, right.tags) &&
     sameTagList(left.artistTags, right.artistTags) &&
-    sameTagList(left.playlistTags, right.playlistTags)
+    sameTagList(left.playlistTags, right.playlistTags) &&
+    sameTokenList(tokensOf(left), tokensOf(right))
   );
 }
 
@@ -201,7 +229,8 @@ export function libraryTextOnlyChange(previous: LibraryFilters, next: LibraryFil
     !sameLibraryFilters(previous, next) &&
     sameTagList(previous.tags, next.tags) &&
     sameTagList(previous.artistTags, next.artistTags) &&
-    sameTagList(previous.playlistTags, next.playlistTags)
+    sameTagList(previous.playlistTags, next.playlistTags) &&
+    sameTokenList(tokensOf(previous), tokensOf(next))
   );
 }
 
@@ -237,6 +266,12 @@ export function viewFromSearch(search: string): ViewState {
       tags: uniqueTags(params.getAll('tag')),
       artistTags: uniqueTags(params.getAll('artistTag')),
       playlistTags: uniqueTags(params.getAll('playlistTag')),
+      tokens: uniqueTokens(
+        params
+          .getAll('f')
+          .map((value) => parseFilterToken(value))
+          .filter((token): token is FilterToken => token != null),
+      ),
     },
     playlists: {
       q: params.get('pq')?.trim() ?? '',
@@ -274,6 +309,17 @@ function appendTags(params: URLSearchParams, key: string, tags: readonly string[
   for (const tag of uniqueTags(tags)) {
     params.append(key, tag);
   }
+}
+
+function tokensOf(filters: LibraryFilters): FilterToken[] {
+  return uniqueTokens(filters.tokens);
+}
+
+function sameTokenList(left: readonly FilterToken[], right: readonly FilterToken[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  return left.every((token, index) => sameFilterToken(token, right[index] ?? { type: '', value: '' }));
 }
 
 function sameTagList(left: readonly string[], right: readonly string[]): boolean {

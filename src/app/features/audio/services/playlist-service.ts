@@ -12,6 +12,7 @@ import {
   PlaylistItem,
 } from '../models/playlist';
 import { API_PATHS } from '../models/track';
+import { TagWrite } from '../utils/tag-assignment';
 
 @Injectable({
   providedIn: 'root',
@@ -70,9 +71,9 @@ export class PlaylistService {
   }
 
   /** Replaces the playlist's tags. The response includes items and tags. */
-  replaceTags(id: number, tags: string[]): Observable<Playlist | null> {
+  replaceTags(id: number, tags: readonly TagWrite[]): Observable<Playlist | null> {
     return this.http
-      .put<unknown>(`${this.one(id)}/tags`, { tags })
+      .put<unknown>(`${this.one(id)}/tags`, { tags: [...tags] })
       .pipe(map((body) => normalizePlaylist(body)));
   }
 

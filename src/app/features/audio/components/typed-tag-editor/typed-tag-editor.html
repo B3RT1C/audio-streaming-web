@@ -1,0 +1,64 @@
+<div class="typed">
+  @for (group of groups(); track group.type) {
+    <section class="tag-group" [class.locked]="group.locked" [attr.data-type]="group.type">
+      <h3>
+        <span class="swatch" [style.background]="group.color" aria-hidden="true"></span>
+        {{ group.label }}
+        @if (group.locked) {
+          <span class="lock" aria-label="Bloqueada">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10V8a4 4 0 0 1 8 0v2h1.5A1.5 1.5 0 0 1 19 11.5v8A1.5 1.5 0 0 1 17.5 21h-11A1.5 1.5 0 0 1 5 19.5v-8A1.5 1.5 0 0 1 6.5 10zm2 0h4V8a2 2 0 0 0-4 0z"/></svg>
+          </span>
+        }
+      </h3>
+      @if (group.tags.length) {
+        <ul class="picked">
+          @for (tag of group.tags; track tag.type + tag.name) {
+            <li [style.--tone]="group.color">
+              <span>{{ tag.name }}</span>
+              @if (!locked(tag)) {
+                <button type="button" [attr.aria-label]="'Quitar ' + tag.name" (click)="remove(tag)">×</button>
+              }
+            </li>
+          }
+        </ul>
+      }
+      @if (!group.locked) {
+        <label class="composer">
+          <span class="visually-hidden">Añadir {{ group.label }}</span>
+          <input
+            type="text"
+            role="combobox"
+            autocomplete="off"
+            maxlength="100"
+            [value]="editingType() === group.type ? draft() : ''"
+            [attr.aria-expanded]="open() && editingType() === group.type && options().length > 0"
+            aria-autocomplete="list"
+            [placeholder]="'Añadir ' + group.label.toLocaleLowerCase()"
+            (input)="onDraft(group.type, $event)"
+            (focus)="onFocus(group.type)"
+            (blur)="closeSoon()"
+            (keydown)="onKey(group.type, $event)"
+          >
+        </label>
+        @if (open() && editingType() === group.type && options().length) {
+          <ul class="suggest" role="listbox">
+            @for (option of options(); track option.kind + option.name; let i = $index) {
+              <li role="option" [attr.aria-selected]="active() === i">
+                <button
+                  type="button"
+                  [class.active]="active() === i"
+                  (mousedown)="$event.preventDefault(); add(group.type, option.name)"
+                >
+                  {{ option.kind === 'create' ? 'Crear «' + option.name + '»' : option.name }}
+                </button>
+              </li>
+            }
+          </ul>
+        }
+      }
+    </section>
+  }
+  @if (notice()) {
+    <p class="message message-error">{{ notice() }}</p>
+  }
+</div>

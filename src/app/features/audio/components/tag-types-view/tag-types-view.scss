@@ -1,0 +1,120 @@
+.types {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.type-column h2 {
+  margin: 0 0 0.7rem;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.type-card {
+  margin: 0 0 0.75rem;
+  padding: 0.75rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: #141416;
+
+  header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem;
+  }
+
+  h3 {
+    margin: 0;
+    font-size: 1rem;
+  }
+}
+
+.swatch {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 999px;
+}
+
+.lock {
+  display: inline-flex;
+  color: var(--text-muted);
+
+  svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+  }
+}
+
+.meta,
+.key,
+.hint {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.key {
+  font-family: ui-monospace, monospace;
+}
+
+.hint {
+  margin: 0.45rem 0 0;
+}
+
+.chip-row {
+  margin-top: 0.65rem;
+}
+
+.tag-chip {
+  background: color-mix(in srgb, var(--tone, #d4d4d8) 16%, #1c1c20);
+  color: var(--tone, #d4d4d8);
+  max-width: none;
+}
+
+.count {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.create,
+.rename {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.55rem;
+}
+
+.create {
+  margin-bottom: 0.8rem;
+
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    flex: 1 1 8rem;
+  }
+}
+
+.color input {
+  width: 3rem;
+  height: 2.75rem;
+  padding: 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.rename input {
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg);
+  padding: 0.4rem 0.7rem;
+}
+
+.danger {
+  color: #ffb4c0;
+}

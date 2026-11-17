@@ -35,7 +35,16 @@ describe('PlaylistService', () => {
         updatedAt: '2026-11-16T00:00:00Z',
       },
     ]);
-    expect(summaries).toEqual([{ id: 1, name: 'Noche', itemCount: 3, items: null, tags: ['Noche'] }]);
+    expect(summaries).toEqual([
+      {
+        id: 1,
+        name: 'Noche',
+        itemCount: 3,
+        items: null,
+        tags: ['Noche'],
+        tagItems: [{ name: 'Noche', type: 'free', readOnly: false }],
+      },
+    ]);
 
     service.create('Gym').subscribe();
     const created = http.expectOne(config.url('/playlists'));

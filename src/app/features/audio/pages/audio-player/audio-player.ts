@@ -1,14 +1,17 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, ElementRef, inject, OnInit, signal, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { switchMap } from 'rxjs/operators';
 import { AudioList } from '../../components/audio-list/audio-list';
+import { FacetSearch } from '../../components/facet-search/facet-search';
 import { FilterPanel } from '../../components/filter-panel/filter-panel';
 import { MetadataDialog } from '../../components/metadata-dialog/metadata-dialog';
 import { PlayerBar } from '../../components/player-bar/player-bar';
 import { PlaylistPicker } from '../../components/playlist-picker/playlist-picker';
+import { TagTypesView } from '../../components/tag-types-view/tag-types-view';
 import { TagsDialog } from '../../components/tags-dialog/tags-dialog';
 import { UploadDialog } from '../../components/upload-dialog/upload-dialog';
-import { Artist, TagSummary } from '../../models/catalog';
+import { Artist, FilterSuggestion, TagSummary, TagType } from '../../models/catalog';
 import { createUploadDraft, UploadDraft } from '../../models/upload-draft';
 import { Playlist, PlaylistItem } from '../../models/playlist';
 import { Track, TrackEdit, TrackRow } from '../../models/track';
@@ -18,6 +21,7 @@ import { PlayerService } from '../../services/player.service';
 import { PlaylistService } from '../../services/playlist-service';
 import { toUserMessage } from '../../utils/api-error';
 import { coverArt } from '../../utils/cover-art';
+import { FilterToken, tokenForTag, uniqueTokens } from '../../utils/filter-tokens';
 import {
   emptyLibraryFilters,
   emptyNameTagFilters,
@@ -32,6 +36,7 @@ import {
   viewFromSearch,
   writeViewSearch,
 } from '../../utils/library-filters';
+import { AssignedTag, namesToAssigned, TagWrite } from '../../utils/tag-assignment';
 import { randomSeed } from '../../utils/playback-queue';
 import { SEARCH_DEBOUNCE_MS } from '../../utils/search-query';
 import { UPLOAD_ACCEPT, validateUploadFile } from '../../utils/upload-rules';
@@ -43,11 +48,12 @@ interface TagEditTarget {
   id: number;
   title: string;
   tags: string[];
+  assigned: AssignedTag[];
 }
 
 @Component({
   selector: 'app-audio-player',
-  imports: [AudioList, UploadDialog, MetadataDialog, PlaylistPicker, PlayerBar, TagsDialog, FilterPanel],
+  imports: [AudioList, UploadDialog, MetadataDialog, PlaylistPicker, PlayerBar, TagsDialog, FilterPanel, FacetSearch, TagTypesView],
   templateUrl: './audio-player.html',
   styleUrl: './audio-player.scss',
 })
@@ -65,6 +71,10 @@ export class AudioPlayer implements OnInit {
   readonly playlistMenu = signal(false);
   readonly cover = coverArt;
   readonly query = signal('');
+  readonly facetTokens = signal<FilterToken[]>([]);
+  readonly facetSuggestions = signal<FilterSuggestion[]>([]);
+  readonly tagTypes = signal<TagType[]>([]);
+  readonly typesLoading = signal(false);
   readonly titleFilter = signal('');
   readonly artistFilter = signal('');
   readonly songTags = signal<string[]>([]);
@@ -111,6 +121,7 @@ export class AudioPlayer implements OnInit {
   private playlistTimer = 0;
   private artistTimer = 0;
   private libraryGeneration = 0;
+  private suggestGeneration = 0;
 
   readonly tagNames = computed(() => this.tags().map((tag) => tag.name));
 
@@ -121,6 +132,7 @@ export class AudioPlayer implements OnInit {
     tags: this.songTags(),
     artistTags: this.artistTags(),
     playlistTags: this.playlistTags(),
+    tokens: this.facetTokens(),
   }));
 
   readonly playlistFilters = computed<NameTagFilters>(() => ({
@@ -187,6 +199,7 @@ export class AudioPlayer implements OnInit {
     this.songTags.set(restored.library.tags);
     this.artistTags.set(restored.library.artistTags);
     this.playlistTags.set(restored.library.playlistTags);
+    this.facetTokens.set(restored.library.tokens ?? []);
     this.playlistQuery.set(restored.playlists.q);
     this.playlistTagFilters.set(restored.playlists.tags);
     this.artistQuery.set(restored.artists.q);
@@ -217,6 +230,47 @@ export class AudioPlayer implements OnInit {
     this.query.set((event.target as HTMLInputElement).value);
     this.writeUrl();
     this.scheduleLibrary();
+  }
+
+  onFacetQuery(value: string): void {
+    this.onSearchInput({ target: { value } } as unknown as Event);
+  }
+
+  onFacetCommit(next: { q: string; tokens: FilterToken[] }): void {
+    this.query.set(next.q);
+    this.facetTokens.set(uniqueTokens(next.tokens));
+    this.writeUrl();
+    this.loadLibraryNow();
+  }
+
+  onFacetSuggest(request: { prefix: string; q: string }): void {
+    const generation = ++this.suggestGeneration;
+    this.catalogService
+      .suggestFilters(request.prefix, request.q)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (rows) => {
+          if (generation === this.suggestGeneration) {
+            this.facetSuggestions.set(rows);
+          }
+        },
+        error: () => {
+          if (generation === this.suggestGeneration) {
+            this.facetSuggestions.set([]);
+          }
+        },
+      });
+  }
+
+  openTag(tag: TagSummary): void {
+    const token = tokenForTag(tag, this.tagTypes().map((type) => type.key));
+    this.activePlaylist.set(null);
+    this.renaming.set(false);
+    this.playlistMenu.set(false);
+    this.section.set(this.query().trim() ? 'search' : 'home');
+    this.facetTokens.set(uniqueTokens([...this.facetTokens(), token]));
+    this.writeUrl();
+    this.loadLibraryNow();
   }
 
   onLibraryFilters(next: LibraryFilters): void {
@@ -343,6 +397,7 @@ export class AudioPlayer implements OnInit {
       id: artist.id,
       title: `Etiquetas de ${artist.name}`,
       tags: artist.tags,
+      assigned: artist.tagItems?.length ? artist.tagItems : namesToAssigned(artist.tags),
     });
     this.ensureTagCatalog();
   }
@@ -358,6 +413,7 @@ export class AudioPlayer implements OnInit {
       id: playlist.id,
       title: `Etiquetas de ${playlist.name}`,
       tags: playlist.tags,
+      assigned: playlist.tagItems?.length ? playlist.tagItems : namesToAssigned(playlist.tags),
     });
     this.ensureTagCatalog();
   }
@@ -606,7 +662,7 @@ export class AudioPlayer implements OnInit {
     this.audioService
       .updateMetadata(track.id, edit.patch)
       .pipe(
-        switchMap(() => this.audioService.replaceTags(track.id, edit.tags)),
+        switchMap(() => this.audioService.replaceTags(track.id, edit.assignments ?? edit.tags)),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
@@ -630,7 +686,7 @@ export class AudioPlayer implements OnInit {
       });
   }
 
-  saveTags(tags: string[]): void {
+  saveTags(tags: readonly TagWrite[]): void {
     const target = this.editingTags();
     if (!target || this.savingTags()) {
       return;
@@ -857,6 +913,7 @@ export class AudioPlayer implements OnInit {
     this.songTags.set(uniqueTags(next.tags));
     this.artistTags.set(uniqueTags(next.artistTags));
     this.playlistTags.set(uniqueTags(next.playlistTags));
+    this.facetTokens.set(uniqueTokens(next.tokens));
   }
 
   private scheduleLibrary(): void {
@@ -1014,6 +1071,82 @@ export class AudioPlayer implements OnInit {
           this.tagsError.set(toUserMessage('list', err));
         },
       });
+    this.loadTagTypes();
+  }
+
+  private loadTagTypes(): void {
+    if (this.typesLoading()) {
+      return;
+    }
+    this.typesLoading.set(true);
+    this.catalogService
+      .listTagTypes()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (types) => {
+          this.tagTypes.set(types);
+          this.typesLoading.set(false);
+        },
+        error: (err: unknown) => {
+          this.typesLoading.set(false);
+          this.tagsError.set(this.typeError(err));
+        },
+      });
+  }
+
+  createTagType(draft: { name: string; key: string; color: string }): void {
+    this.catalogService
+      .createTagType(draft)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.tagsError.set('');
+          this.typesLoading.set(false);
+          this.loadTags();
+        },
+        error: (err: unknown) => this.tagsError.set(this.typeError(err)),
+      });
+  }
+
+  renameTagType(change: { type: TagType; name: string }): void {
+    if (change.type.system) {
+      return;
+    }
+    this.catalogService
+      .updateTagType(change.type.id, { name: change.name })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.tagsError.set('');
+          this.typesLoading.set(false);
+          this.loadTags();
+        },
+        error: (err: unknown) => this.tagsError.set(this.typeError(err)),
+      });
+  }
+
+  deleteTagType(type: TagType): void {
+    if (type.system) {
+      return;
+    }
+    this.catalogService
+      .deleteTagType(type.id)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: () => {
+          this.tagsError.set('');
+          this.typesLoading.set(false);
+          this.loadTags();
+        },
+        error: (err: unknown) => this.tagsError.set(this.typeError(err)),
+      });
+  }
+
+  private typeError(err: unknown): string {
+    if (err instanceof HttpErrorResponse && err.status === 409) {
+      return 'Los tipos de sistema no se pueden modificar.';
+    }
+    return toUserMessage('metadata', err);
   }
 
   private writeUrl(): void {
@@ -1027,10 +1160,13 @@ export class AudioPlayer implements OnInit {
   }
 
   ensureTagCatalog(): void {
-    if (this.tagsLoaded() || this.tagsLoading()) {
+    if (!this.tagsLoaded() && !this.tagsLoading()) {
+      this.loadTags();
       return;
     }
-    this.loadTags();
+    if (this.tagTypes().length === 0 && !this.typesLoading()) {
+      this.loadTagTypes();
+    }
   }
 
   private finishTagSave(): void {
