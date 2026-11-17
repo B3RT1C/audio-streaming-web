@@ -13,7 +13,9 @@ import {
   withShuffle,
 } from '../utils/playback-queue';
 import { playbackErrorMessage } from '../utils/api-error';
+import { PlayOrigin } from '../utils/listen-clock';
 import { PlaybackResolver } from './playback-resolver';
+import { PlayReportService } from './play-report.service';
 
 export interface PlayOrderItem {
   index: number;
@@ -26,8 +28,14 @@ export interface PlayOrderItem {
 })
 export class PlayerService {
   private resolver = inject(PlaybackResolver);
+  private report = inject(PlayReportService);
   private audio: HTMLAudioElement | null = null;
+  private pageHideBound = false;
   private readonly cursorState = signal<QueueCursor>(createQueueCursor(0, -1));
+  private readonly onPageHide = () => {
+    this.capturePosition();
+    this.report.unload();
+  };
 
   readonly queue = signal<Track[]>([]);
   readonly currentTime = signal(0);
@@ -65,7 +73,9 @@ export class PlayerService {
     }
     this.audio = audio;
     audio.addEventListener('timeupdate', () => {
-      this.currentTime.set(audio.currentTime || 0);
+      const position = audio.currentTime || 0;
+      this.currentTime.set(position);
+      this.report.sample(position, !audio.paused);
       this.publishPosition();
     });
     audio.addEventListener('loadedmetadata', () => {
@@ -81,7 +91,11 @@ export class PlayerService {
       this.playing.set(false);
       this.publishPlaybackState();
     });
-    audio.addEventListener('ended', () => this.onEnded());
+    audio.addEventListener('ended', () => {
+      const position = Number.isFinite(audio.currentTime) ? audio.currentTime : this.currentTime();
+      this.report.sample(position, true);
+      this.onEnded();
+    });
     audio.addEventListener('error', () => {
       if (!audio.getAttribute('src')) {
         return;
@@ -90,14 +104,20 @@ export class PlayerService {
       this.playing.set(false);
     });
     this.installMediaSession();
+    this.bindPageHide();
+    this.report.retryPending();
     if (this.current()) {
       this.loadCurrent(false);
     }
   }
 
-  playTracks(tracks: Track[], startId?: number): void {
+  playTracks(tracks: Track[], startId?: number, origin?: PlayOrigin): void {
     const startIndex =
       startId == null ? 0 : Math.max(0, tracks.findIndex((track) => track.id === startId));
+    this.capturePosition();
+    if (origin) {
+      this.report.setOrigin(origin);
+    }
     this.queue.set(tracks);
     this.cursorState.set(
       replaceQueue(tracks.length, startIndex, this.cursorState(), Math.random),
@@ -110,11 +130,15 @@ export class PlayerService {
    * Plays `tracks` in a deterministic random order. The current track stays
    * first in that order, and nothing repeats until every track has played.
    */
-  playShuffled(tracks: Track[], seed: number = randomSeed()): void {
+  playShuffled(tracks: Track[], seed: number = randomSeed(), origin?: PlayOrigin): void {
     if (tracks.length === 0) {
       return;
     }
     const order = shuffledIndices(tracks.length, -1, mulberry32(seed >>> 0));
+    this.capturePosition();
+    if (origin) {
+      this.report.setOrigin(origin);
+    }
     this.queue.set(tracks);
     this.cursorState.set({
       index: order[0] ?? 0,
@@ -147,10 +171,12 @@ export class PlayerService {
   }
 
   next(): void {
+    this.capturePosition();
     this.applyAdvance('next');
   }
 
   previous(): void {
+    this.capturePosition();
     this.applyAdvance('previous');
   }
 
@@ -159,6 +185,7 @@ export class PlayerService {
     if (index < 0 || index >= length) {
       return;
     }
+    this.capturePosition();
     this.cursorState.update((cursor) => {
       if (!cursor.shuffle) {
         return { ...cursor, index };
@@ -174,8 +201,10 @@ export class PlayerService {
     if (!audio || !Number.isFinite(seconds)) {
       return;
     }
+    this.capturePosition();
     const duration = Number.isFinite(audio.duration) ? audio.duration : this.duration();
     const next = Math.min(Math.max(0, seconds), duration || seconds);
+    this.report.seek(next);
     audio.currentTime = next;
     this.currentTime.set(next);
     this.publishPosition();
@@ -197,6 +226,8 @@ export class PlayerService {
       this.currentTime.set(0);
       return;
     }
+    this.capturePosition();
+    this.report.seek(0);
     audio.pause();
     audio.currentTime = 0;
     this.currentTime.set(0);
@@ -215,8 +246,12 @@ export class PlayerService {
     const wasPlaying = this.playing();
     const nextQueue = tracks.filter((track) => track.id !== id);
     this.queue.set(nextQueue);
+    if (wasCurrent) {
+      this.capturePosition();
+    }
     if (nextQueue.length === 0) {
       this.cursorState.set(createQueueCursor(0, -1));
+      this.report.close(false);
       this.clearElement();
       return;
     }
@@ -250,6 +285,23 @@ export class PlayerService {
       : 'Aleatorio';
   }
 
+  private capturePosition(forcePlaying = false): void {
+    const audio = this.audio;
+    if (!audio) {
+      return;
+    }
+    const position = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+    this.report.sample(position, forcePlaying || !audio.paused);
+  }
+
+  private bindPageHide(): void {
+    if (this.pageHideBound || typeof window === 'undefined') {
+      return;
+    }
+    this.pageHideBound = true;
+    window.addEventListener('pagehide', this.onPageHide);
+  }
+
   private onEnded(): void {
     this.applyAdvance('ended');
   }
@@ -263,26 +315,43 @@ export class PlayerService {
     );
     this.cursorState.set(result.cursor);
     if (result.stopped) {
+      this.report.close(reason === 'ended');
       this.pause();
       return;
     }
     if (result.restart) {
+      if (reason === 'ended') {
+        const id = this.current()?.id;
+        if (id != null) {
+          this.report.open(id, true);
+          this.report.seek(0);
+        }
+        const audio = this.audio;
+        if (audio) {
+          audio.currentTime = 0;
+          this.currentTime.set(0);
+        }
+        this.resume();
+        return;
+      }
       this.seek(0);
-      if (reason === 'ended' || this.playing()) {
+      if (this.playing()) {
         this.resume();
       }
       return;
     }
-    this.loadCurrent(true);
+    this.loadCurrent(true, reason === 'ended' ? 'completed' : 'changed');
   }
 
-  private loadCurrent(autoplay: boolean): void {
+  private loadCurrent(autoplay: boolean, end: 'completed' | 'changed' = 'changed'): void {
     const track = this.current();
     const audio = this.audio;
     if (!track) {
+      this.report.close(end === 'completed');
       this.clearElement();
       return;
     }
+    this.report.open(track.id, end === 'completed');
     this.currentTime.set(0);
     this.duration.set(track.durationSeconds ?? 0);
     this.publishMetadata();

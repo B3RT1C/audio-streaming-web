@@ -14,6 +14,7 @@ describe('AudioPlayer', () => {
     }).compileComponents();
 
     history.replaceState(history.state, '', '/');
+    localStorage.removeItem('audio-streaming.play-events');
     fixture = TestBed.createComponent(AudioPlayer);
     http = TestBed.inject(HttpTestingController);
     fixture.detectChanges();

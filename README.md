@@ -1,6 +1,6 @@
 # Audio Streaming Web
 
-Cliente web del ecosistema [audio-streaming](https://github.com/B3RT1C/audio-streaming). Versión **0.4.2**.
+Cliente web del ecosistema [audio-streaming](https://github.com/B3RT1C/audio-streaming). Versión **0.5.0**.
 
 - Repo: https://github.com/B3RT1C/audio-streaming-web
 - Stack: Angular 21, TypeScript, SCSS
@@ -29,6 +29,13 @@ La interfaz queda en `http://localhost:4200`. En local, la API se pide a `http:/
 | `npm run build` | Build de producción en `dist/` |
 | `npm test` | Tests unitarios |
 | `node scripts/ci/check-api-contract.mjs` | Comprueba las rutas del cliente |
+
+## Funcionalidad 0.5.0
+
+- El reproductor acumula el tiempo que el audio avanza de verdad. Pausar no suma, y saltar hacia delante tampoco: solo cuenta el tramo reproducido.
+- Al terminar la canción, al saltar o cambiar, y al cerrar la página (`fetch` con `keepalive`, o `sendBeacon` si no se puede), se envía `POST /plays`. El cuerpo lleva `source` (`library`, `search`, `playlist`, `artist`, `shuffle` u `other`) y `playlistId` cuando la escucha salió de una lista. El aleatorio de una lista manda `shuffle` y el id de la lista.
+- Cada evento tiene un `clientEventId`. Si el API falla, se guarda en `localStorage` y se reintenta. Un evento de 0 s no se envía. El servidor cuenta la reproducción si se escuchan al menos 30 s o la mitad de la canción.
+- Estadísticas, sin sexta pestaña en la barra inferior (a 360 px ya van justas las cinco). En el móvil se abre con el botón de la cabecera de Inicio; en escritorio, también desde el menú lateral. Periodo (hoy, 7 días, este mes, este año, todo o un rango), resumen, gráfico propio y rankings. Pulsar una canción, un artista o una etiqueta filtra la biblioteca; pulsar una playlist abre la lista.
 
 ## Funcionalidad 0.4.2
 
@@ -86,14 +93,14 @@ La página y el API siguen yendo en orígenes distintos (por ejemplo la web en e
 
 ## Contrato que consume esta versión
 
-Alineado con el backend 0.4.1 (`docs/openapi.yaml` de la rama `feat/0.4.1` cuando esté publicada; el contrato de esta entrega está descrito aquí). Si un nombre cambia, el ajuste está en un solo sitio:
+Alineado con el backend 0.5.0 (el contrato de esta entrega está descrito aquí; el de 0.4.1 sigue vigente). Si un nombre cambia, el ajuste está en un solo sitio:
 
 - Canciones: `src/app/features/audio/models/track.ts` (`normalizeTrack`)
 - Listas: `src/app/features/audio/models/playlist.ts` (`normalizePlaylist`)
 - Artistas y etiquetas: `src/app/features/audio/models/catalog.ts`
 - Filtros y query string: `src/app/features/audio/utils/library-filters.ts` y `src/app/features/audio/utils/filter-tokens.ts`
 - Etiquetas por tipo: `src/app/features/audio/utils/tag-assignment.ts`
-- Cuerpos de las peticiones: `audio-service.ts`, `playlist-service.ts` y `catalog-service.ts`
+- Cuerpos de las peticiones: `audio-service.ts`, `playlist-service.ts`, `catalog-service.ts`, `play-report.service.ts` y `stats.service.ts`
 - Textos de error: `src/app/features/audio/utils/api-error.ts`
 
 | Petición | Cuerpo / respuesta |
@@ -119,6 +126,10 @@ Alineado con el backend 0.4.1 (`docs/openapi.yaml` de la rama `feat/0.4.1` cuand
 | `POST /playlists/{id}/items` | `{ audioId }`. Responde el ítem, no la playlist. La web recarga el detalle |
 | `DELETE /playlists/{id}/items/{audioId}` | 204 |
 | `PUT /playlists/{id}/items` | `{ "audioIds": [3, 1, 8] }` con exactamente las canciones actuales, cada una una vez |
+| `POST /plays` | `{ audioId, startedAt, listenedSeconds, completed, source?, playlistId?, clientEventId }`. `source` es `library`, `search`, `playlist`, `artist`, `shuffle` u `other`. Responde **201** o **200** y es idempotente por `clientEventId`. Una escucha de 0 s no se envía. El servidor la cuenta si `listenedSeconds` llega a `min(30 s, 50 %)` |
+| `GET /stats/summary?from&to` | `{ plays, listenedSeconds, distinctAudios, distinctArtists, from, to }`. `from` y `to` son `YYYY-MM-DD` inclusivas en `Europe/Madrid`. Sin ellas, todo el histórico |
+| `GET /stats/top?kind=audio\|artist\|tag\|playlist&from&to&limit&tagType` | `[{ id, name, secondaryName?, plays, listenedSeconds }]`. `tagType` solo aplica a `kind=tag` |
+| `GET /stats/timeline?granularity=day\|month\|year&from&to` | `[{ period, plays, listenedSeconds }]` |
 
 Los errores son `{ "message", "code" }`. Esta web traduce `FILE_TOO_LARGE` (413), `INVALID_FILE`, `INVALID_ORDER` (400), `INVALID_QUERY` (400, filtro o semilla mal formados) y `RANGE_NOT_SATISFIABLE` (416). La lista de reproducción se ordena por `position`, así que un hueco no cambia el orden ni se confunde con el número de canciones.
 

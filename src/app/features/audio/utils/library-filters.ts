@@ -26,7 +26,7 @@ export interface NameTagFilters {
   tags: string[];
 }
 
-export type LibraryView = 'home' | 'search' | 'playlists' | 'artists' | 'tags';
+export type LibraryView = 'home' | 'search' | 'playlists' | 'artists' | 'tags' | 'stats';
 
 export interface ViewState {
   view: LibraryView;
@@ -48,7 +48,7 @@ export interface ShuffleRequest {
   seed?: number;
 }
 
-const VIEWS: readonly LibraryView[] = ['home', 'search', 'playlists', 'artists', 'tags'];
+const VIEWS: readonly LibraryView[] = ['home', 'search', 'playlists', 'artists', 'tags', 'stats'];
 
 export function emptyLibraryFilters(): LibraryFilters {
   return { q: '', title: '', artist: '', tags: [], artistTags: [], playlistTags: [], tokens: [] };

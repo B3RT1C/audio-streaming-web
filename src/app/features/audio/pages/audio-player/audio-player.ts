@@ -8,6 +8,7 @@ import { FilterPanel } from '../../components/filter-panel/filter-panel';
 import { MetadataDialog } from '../../components/metadata-dialog/metadata-dialog';
 import { PlayerBar } from '../../components/player-bar/player-bar';
 import { PlaylistPicker } from '../../components/playlist-picker/playlist-picker';
+import { StatsView } from '../../components/stats-view/stats-view';
 import { TagTypesView } from '../../components/tag-types-view/tag-types-view';
 import { TagsDialog } from '../../components/tags-dialog/tags-dialog';
 import { UploadDialog } from '../../components/upload-dialog/upload-dialog';
@@ -15,6 +16,7 @@ import { Artist, FilterSuggestion, TagSummary, TagType } from '../../models/cata
 import { createUploadDraft, UploadDraft } from '../../models/upload-draft';
 import { Playlist, PlaylistItem } from '../../models/playlist';
 import { Track, TrackEdit, TrackRow } from '../../models/track';
+import { StatsRank } from '../../models/stats';
 import { AudioService } from '../../services/audio-service';
 import { CatalogService } from '../../services/catalog-service';
 import { PlayerService } from '../../services/player.service';
@@ -22,6 +24,7 @@ import { PlaylistService } from '../../services/playlist-service';
 import { toUserMessage } from '../../utils/api-error';
 import { coverArt } from '../../utils/cover-art';
 import { FilterToken, tokenForTag, uniqueTokens } from '../../utils/filter-tokens';
+import { PlayOrigin } from '../../utils/listen-clock';
 import {
   emptyLibraryFilters,
   emptyNameTagFilters,
@@ -41,7 +44,7 @@ import { randomSeed } from '../../utils/playback-queue';
 import { SEARCH_DEBOUNCE_MS } from '../../utils/search-query';
 import { UPLOAD_ACCEPT, validateUploadFile } from '../../utils/upload-rules';
 
-type Section = 'home' | 'search' | 'playlists' | 'artists' | 'tags';
+type Section = 'home' | 'search' | 'playlists' | 'artists' | 'tags' | 'stats';
 
 interface TagEditTarget {
   kind: 'artist' | 'playlist';
@@ -53,7 +56,7 @@ interface TagEditTarget {
 
 @Component({
   selector: 'app-audio-player',
-  imports: [AudioList, UploadDialog, MetadataDialog, PlaylistPicker, PlayerBar, TagsDialog, FilterPanel, FacetSearch, TagTypesView],
+  imports: [AudioList, UploadDialog, MetadataDialog, PlaylistPicker, PlayerBar, TagsDialog, FilterPanel, FacetSearch, TagTypesView, StatsView],
   templateUrl: './audio-player.html',
   styleUrl: './audio-player.scss',
 })
@@ -122,6 +125,8 @@ export class AudioPlayer implements OnInit {
   private artistTimer = 0;
   private libraryGeneration = 0;
   private suggestGeneration = 0;
+  private artistOrigin = false;
+  private holdingArtistOrigin = false;
 
   readonly tagNames = computed(() => this.tags().map((tag) => tag.name));
 
@@ -274,6 +279,9 @@ export class AudioPlayer implements OnInit {
   }
 
   onLibraryFilters(next: LibraryFilters): void {
+    if (!this.holdingArtistOrigin) {
+      this.artistOrigin = false;
+    }
     const previous = this.libraryFilters();
     this.applyLibrary(next);
     if (sameLibraryFilters(previous, this.libraryFilters())) {
@@ -372,7 +380,10 @@ export class AudioPlayer implements OnInit {
     this.renaming.set(false);
     this.playlistMenu.set(false);
     this.section.set('home');
+    this.artistOrigin = true;
+    this.holdingArtistOrigin = true;
     this.onLibraryFilters({ ...this.libraryFilters(), artist });
+    this.holdingArtistOrigin = false;
   }
 
   playFilteredRandom(): void {
@@ -545,19 +556,47 @@ export class AudioPlayer implements OnInit {
       this.player.toggle();
       return;
     }
-    this.player.playTracks(tracks, track.id);
+    this.player.playTracks(tracks, track.id, this.playOrigin());
   }
 
   playActivePlaylist(): void {
+    const playlist = this.activePlaylist();
     const tracks = this.playlistEntries()
       .map((entry) => entry.track)
       .filter((entry): entry is Track => entry != null);
-    if (tracks.length === 0) {
+    if (tracks.length === 0 || !playlist) {
       this.actionError.set('Esta lista no tiene canciones reproducibles.');
       return;
     }
     this.actionError.set('');
-    this.player.playTracks(tracks, tracks[0].id);
+    this.player.playTracks(tracks, tracks[0].id, { source: 'playlist', playlistId: playlist.id });
+  }
+
+  openStatsAudio(row: StatsRank): void {
+    const track = this.catalog().find((item) => item.id === row.id);
+    const title = track?.title || track?.name || row.name;
+    const artist = track?.artist ?? '';
+    this.activePlaylist.set(null);
+    this.section.set('home');
+    this.onLibraryFilters({ ...emptyLibraryFilters(), title, artist });
+  }
+
+  openStatsArtist(row: StatsRank): void {
+    this.searchArtist(row.name);
+  }
+
+  openStatsTag(row: StatsRank): void {
+    const type = row.tagType?.trim();
+    if (!type || !row.name) {
+      return;
+    }
+    this.activePlaylist.set(null);
+    this.section.set('home');
+    this.onLibraryFilters({ ...emptyLibraryFilters(), tokens: [{ type, value: row.name }] });
+  }
+
+  openStatsPlaylist(row: StatsRank): void {
+    this.openPlaylist(row.id);
   }
 
   moveEntry(change: { audioId: number; direction: -1 | 1 }): void {
@@ -903,7 +942,23 @@ export class AudioPlayer implements OnInit {
       return;
     }
     this.actionError.set('');
-    this.player.playShuffled(tracks, randomSeed());
+    const playlistId = this.activePlaylist()?.id;
+    const origin: PlayOrigin = playlistId != null ? { source: 'shuffle', playlistId } : { source: 'shuffle' };
+    this.player.playShuffled(tracks, randomSeed(), origin);
+  }
+
+  private playOrigin(): PlayOrigin {
+    const playlist = this.activePlaylist();
+    if (playlist) {
+      return { source: 'playlist', playlistId: playlist.id };
+    }
+    if (this.section() === 'search') {
+      return { source: 'search' };
+    }
+    if (this.artistOrigin && this.section() === 'home') {
+      return { source: 'artist' };
+    }
+    return { source: 'library' };
   }
 
   private applyLibrary(next: LibraryFilters): void {

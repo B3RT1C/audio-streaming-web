@@ -1,0 +1,162 @@
+<header class="top">
+  <div>
+    <h1>Estadísticas</h1>
+    <p class="count">{{ rangeLabel() }}</p>
+  </div>
+</header>
+
+<div class="periods" role="group" aria-label="Periodo">
+  @for (item of presets; track item.id) {
+    <button type="button" [attr.aria-pressed]="preset() === item.id" [class.active]="preset() === item.id" (click)="selectPreset(item.id)">
+      {{ item.label }}
+    </button>
+  }
+</div>
+<p class="hint">Días en horario de Madrid. Una escucha cuenta si dura al menos 30 s o la mitad de la canción.</p>
+
+@if (preset() === 'custom') {
+  <div class="dates">
+    <label>
+      <span>Desde</span>
+      <input type="date" [value]="customFrom()" (change)="onCustomFrom($event)">
+    </label>
+    <label>
+      <span>Hasta</span>
+      <input type="date" [value]="customTo()" (change)="onCustomTo($event)">
+    </label>
+  </div>
+}
+
+@if (summaryLoading() && !summary()) {
+  <p class="status">Cargando estadísticas…</p>
+}
+@if (summaryError()) {
+  <div class="banner-row">
+    <p class="message message-error" role="alert">{{ summaryError() }}</p>
+    <button type="button" class="btn btn-ghost" (click)="reloadAll()">Reintentar</button>
+  </div>
+}
+@if (summary(); as summary) {
+  <div class="summary">
+    <article class="metric">
+      <strong [attr.title]="count(summary.plays)">{{ count(summary.plays) }}</strong>
+      <span>Escuchas</span>
+    </article>
+    <article class="metric">
+      <strong [attr.title]="listened(summary.listenedSeconds)">{{ listened(summary.listenedSeconds) }}</strong>
+      <span>Tiempo escuchado</span>
+    </article>
+    <article class="metric">
+      <strong [attr.title]="count(summary.distinctAudios)">{{ count(summary.distinctAudios) }}</strong>
+      <span>Canciones</span>
+    </article>
+    <article class="metric">
+      <strong [attr.title]="count(summary.distinctArtists)">{{ count(summary.distinctArtists) }}</strong>
+      <span>Artistas</span>
+    </article>
+  </div>
+  @if (emptySummary()) {
+    <p class="status">Todavía no hay escuchas en este periodo.</p>
+  }
+}
+
+<section class="block" aria-label="Línea temporal">
+  <div class="block-head">
+    <h2>Línea temporal</h2>
+    <div class="periods compact" role="group" aria-label="Granularidad">
+      @for (item of granularities; track item.id) {
+        <button type="button" [attr.aria-pressed]="granularity() === item.id" [class.active]="granularity() === item.id" (click)="selectGranularity(item.id)">
+          {{ item.label }}
+        </button>
+      }
+    </div>
+  </div>
+  @if (timelineError()) {
+    <div class="banner-row">
+      <p class="message message-error" role="alert">{{ timelineError() }}</p>
+      <button type="button" class="btn btn-ghost" (click)="selectGranularity(granularity())">Reintentar</button>
+    </div>
+  } @else if (timelineLoading() && timeline().length === 0) {
+    <p class="status">Cargando el gráfico…</p>
+  } @else if (chart(); as chart) {
+    <div class="chart">
+      <svg [attr.viewBox]="'0 0 ' + chart.width + ' ' + chart.height" role="img" [attr.aria-label]="'Tiempo escuchado, ' + timeline().length + ' periodos'">
+        <path class="area" [attr.d]="chart.area"></path>
+        <path class="line" [attr.d]="chart.line"></path>
+        @for (dot of chart.dots; track $index) {
+          <circle [attr.cx]="dot.x" [attr.cy]="dot.y" r="3"></circle>
+        }
+        @for (label of chart.labels; track $index) {
+          <text [attr.x]="label.x" [attr.y]="chart.height - 4" [attr.text-anchor]="label.anchor">{{ label.text }}</text>
+        }
+      </svg>
+    </div>
+    <table class="visually-hidden">
+      <caption>Tiempo escuchado por periodo</caption>
+      <thead>
+        <tr><th>Periodo</th><th>Escuchas</th><th>Tiempo</th></tr>
+      </thead>
+      <tbody>
+        @for (bucket of timeline(); track bucket.period) {
+          <tr>
+            <td>{{ periodLabel(bucket.period) }}</td>
+            <td>{{ count(bucket.plays) }}</td>
+            <td>{{ listened(bucket.listenedSeconds) }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  } @else {
+    <p class="status">Todavía no hay escuchas en este periodo.</p>
+  }
+</section>
+
+<section class="block" aria-label="Rankings">
+  <h2>Rankings</h2>
+  <div class="periods" role="tablist" aria-label="Tipo de ranking">
+    @for (item of kinds; track item.id) {
+      <button type="button" role="tab" [attr.aria-selected]="kind() === item.id" [class.active]="kind() === item.id" (click)="selectKind(item.id)">
+        {{ item.label }}
+      </button>
+    }
+  </div>
+  @if (kind() === 'tag') {
+    <div class="periods compact" role="group" aria-label="Tipo de etiqueta">
+      @for (item of tagFilters; track item.id) {
+        <button type="button" [attr.aria-pressed]="tagFilter() === item.id" [class.active]="tagFilter() === item.id" (click)="selectTagFilter(item.id)">
+          {{ item.label }}
+        </button>
+      }
+    </div>
+  }
+  @if (rankError()) {
+    <div class="banner-row">
+      <p class="message message-error" role="alert">{{ rankError() }}</p>
+      <button type="button" class="btn btn-ghost" (click)="selectKind(kind())">Reintentar</button>
+    </div>
+  } @else if (rankLoading() && ranks().length === 0) {
+    <p class="status">Cargando el ranking…</p>
+  } @else if (ranks().length === 0) {
+    <p class="status">{{ emptyRank() }}</p>
+  } @else {
+    <ol class="ranks">
+      @for (row of ranks(); track row.tagType + ':' + row.id; let index = $index) {
+        <li>
+          <button type="button" class="rank" [attr.aria-label]="rankLabel(row)" (click)="choose(row)">
+            <span class="pos">{{ index + 1 }}</span>
+            <span class="copy">
+              <span class="name" [attr.title]="row.name">{{ row.name }}</span>
+              @if (row.secondaryName) {
+                <span class="sub" [attr.title]="row.secondaryName">{{ row.secondaryName }}</span>
+              }
+            </span>
+            <span class="stat">
+              <span>{{ count(row.plays) }}</span>
+              <span>{{ listened(row.listenedSeconds) }}</span>
+            </span>
+          </button>
+        </li>
+      }
+    </ol>
+  }
+</section>
