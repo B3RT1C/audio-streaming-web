@@ -1,6 +1,6 @@
 import { Component, input, output } from '@angular/core';
 import { Playlist } from '../../models/playlist';
-import { Track, trackTitle } from '../../models/track';
+import { Track, trackSecondary, trackTitle } from '../../models/track';
 
 @Component({
   selector: 'app-playlist-picker',
@@ -15,6 +15,7 @@ export class PlaylistPicker {
   readonly closed = output<void>();
 
   protected readonly titleOf = trackTitle;
+  protected readonly secondaryOf = trackSecondary;
 
   close(): void {
     this.closed.emit();

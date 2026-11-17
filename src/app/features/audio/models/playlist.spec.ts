@@ -24,7 +24,7 @@ describe('normalizePlaylist', () => {
       },
     ]);
 
-    expect(playlists).toEqual([{ id: 3, name: 'Noche', itemCount: 4, items: null }]);
+    expect(playlists).toEqual([{ id: 3, name: 'Noche', itemCount: 4, items: null, tags: [] }]);
   });
 
   it('sorts detail items by position even when there are gaps, and keeps the nested audio', () => {
@@ -59,6 +59,27 @@ describe('normalizePlaylist', () => {
       name: 'Cola',
       itemCount: 0,
       items: [],
+      tags: [],
     });
+  });
+
+  it('keeps playlist tags and the secondary title nested in each item', () => {
+    const playlist = normalizePlaylist({
+      id: 8,
+      name: 'Viaje',
+      itemCount: 1,
+      tags: [' Live ', ''],
+      items: [
+        {
+          position: 1,
+          audioId: 4,
+          audio: { ...track(4, 'Apertura'), secondaryTitle: 'Opening', tags: ['Live'] },
+        },
+      ],
+    });
+
+    expect(playlist?.tags).toEqual(['Live']);
+    expect(playlist?.items?.[0].audio?.secondaryTitle).toBe('Opening');
+    expect(playlist?.items?.[0].audio?.tags).toEqual(['Live']);
   });
 });

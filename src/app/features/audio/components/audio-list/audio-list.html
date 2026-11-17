@@ -18,52 +18,72 @@
     <p class="empty-title">{{ emptyMessage() }}</p>
   </div>
 } @else {
-  <ul class="tracks">
-    @for (entry of entries(); track entry.audioId; let i = $index) {
+  <ul class="tracks" [class.virtual]="virtual()" [style.height.px]="virtual() ? layout().total : null">
+    @for (row of rows(); track row.entry.audioId) {
       <li
-        [attr.data-index]="i"
-        [class.playing]="entry.audioId === selectedId()"
-        [class.missing]="!entry.track"
-        [class.drag-over]="dragOver() === i"
+        [attr.data-index]="row.index"
+        [class.playing]="row.entry.audioId === selectedId()"
+        [class.missing]="!row.entry.track"
+        [class.drag-over]="dragOver() === row.index"
+        [class.vrow]="virtual()"
+        [style.transform]="virtual() ? 'translateY(' + row.top + 'px)' : null"
+        [style.height.px]="virtual() ? row.height : null"
       >
-        @if (mode() === 'playlist') {
+        <div class="topline">
+          @if (mode() === 'playlist') {
+            <button
+              type="button"
+              class="grip"
+              aria-label="Reordenar"
+              (pointerdown)="onGripDown(row.index, $event)"
+              (pointermove)="onGripMove($event)"
+              (pointerup)="onGripUp()"
+              (pointercancel)="onGripUp()"
+              (keydown)="onGripKey(row.index, $event)"
+            >
+              <span></span><span></span><span></span>
+            </button>
+          }
           <button
             type="button"
-            class="grip"
-            aria-label="Reordenar"
-            (pointerdown)="onGripDown(i, $event)"
-            (pointermove)="onGripMove($event)"
-            (pointerup)="onGripUp()"
-            (pointercancel)="onGripUp()"
-            (keydown)="onGripKey(i, $event)"
+            class="track-main"
+            [disabled]="!row.entry.track"
+            (click)="row.entry.track && selected.emit(row.entry.track)"
+          >
+            <span class="art" [style.background]="cover(coverSeed(row.entry)).background" aria-hidden="true">
+              {{ cover(coverSeed(row.entry)).initials }}
+            </span>
+            <span class="meta">
+              <span class="title">{{ row.entry.track ? titleOf(row.entry.track) : 'Canción no disponible' }}</span>
+              @if (row.entry.track && secondaryOf(row.entry.track)) {
+                <span class="alt">{{ secondaryOf(row.entry.track) }}</span>
+              }
+              <span class="sub">{{ row.entry.track ? (subtitleOf(row.entry.track) || 'Sin artista') : 'Ya no está en la biblioteca' }}</span>
+            </span>
+            <span class="dur">{{ row.entry.track ? clock(row.entry.track.durationSeconds) : '—' }}</span>
+          </button>
+          <button
+            type="button"
+            class="more"
+            aria-label="Más opciones"
+            [attr.aria-expanded]="menuId() === row.entry.audioId"
+            (click)="toggleMenu(row.entry.audioId, $event)"
           >
             <span></span><span></span><span></span>
           </button>
+        </div>
+        @if (row.entry.track && row.entry.track.tags.length) {
+          <div class="chips">
+            @for (tag of row.entry.track.tags; track tag) {
+              <button
+                type="button"
+                class="tag-chip"
+                [attr.aria-label]="'Filtrar por ' + tag"
+                (click)="pickTag(tag, $event)"
+              >{{ tag }}</button>
+            }
+          </div>
         }
-        <button
-          type="button"
-          class="track-main"
-          [disabled]="!entry.track"
-          (click)="entry.track && selected.emit(entry.track)"
-        >
-          <span class="art" [style.background]="cover(coverSeed(entry)).background" aria-hidden="true">
-            {{ cover(coverSeed(entry)).initials }}
-          </span>
-          <span class="meta">
-            <span class="title">{{ entry.track ? titleOf(entry.track) : 'Canción no disponible' }}</span>
-            <span class="sub">{{ entry.track ? (subtitleOf(entry.track) || 'Sin artista') : 'Ya no está en la biblioteca' }}</span>
-          </span>
-          <span class="dur">{{ entry.track ? clock(entry.track.durationSeconds) : '—' }}</span>
-        </button>
-        <button
-          type="button"
-          class="more"
-          aria-label="Más opciones"
-          [attr.aria-expanded]="menuId() === entry.audioId"
-          (click)="toggleMenu(entry.audioId, $event)"
-        >
-          <span></span><span></span><span></span>
-        </button>
       </li>
     }
   </ul>

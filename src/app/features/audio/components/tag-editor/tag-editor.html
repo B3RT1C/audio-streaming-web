@@ -1,0 +1,47 @@
+<div class="editor">
+  @if (tags().length) {
+    <ul class="picked">
+      @for (tag of tags(); track tag) {
+        <li>
+          <span>{{ tag }}</span>
+          <button type="button" [attr.aria-label]="'Quitar ' + tag" (click)="remove(tag)">×</button>
+        </li>
+      }
+    </ul>
+  }
+  <label class="composer">
+    <span class="visually-hidden">Añadir etiqueta</span>
+    <input
+      type="text"
+      role="combobox"
+      autocomplete="off"
+      maxlength="100"
+      [value]="draft()"
+      [attr.aria-expanded]="open() && options().length > 0"
+      aria-autocomplete="list"
+      placeholder="Añadir etiqueta"
+      (input)="onDraft($event)"
+      (focus)="open.set(true)"
+      (blur)="closeSoon()"
+      (keydown)="onKey($event)"
+    >
+  </label>
+  @if (open() && options().length) {
+    <ul class="suggest" role="listbox">
+      @for (option of options(); track option.kind + option.name; let i = $index) {
+        <li role="option" [attr.aria-selected]="active() === i">
+          <button
+            type="button"
+            [class.active]="active() === i"
+            (mousedown)="$event.preventDefault(); add(option.name)"
+          >
+            {{ option.kind === 'create' ? 'Crear «' + option.name + '»' : option.name }}
+          </button>
+        </li>
+      }
+    </ul>
+  }
+  @if (notice()) {
+    <p class="message message-error">{{ notice() }}</p>
+  }
+</div>

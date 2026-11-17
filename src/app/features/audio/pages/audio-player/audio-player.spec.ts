@@ -23,10 +23,12 @@ describe('AudioPlayer', () => {
         path: 'p',
         extension: 'mp3',
         title: 'Noche',
+        secondaryTitle: 'Night',
         artist: 'Luna',
         album: 'Azul',
         durationSeconds: 95,
         trackNumber: 3,
+        tags: ['Directo'],
       },
     ]);
     http.expectOne((request) => request.url.endsWith('/playlists')).flush([
@@ -46,8 +48,10 @@ describe('AudioPlayer', () => {
   it('shows the library returned by the API', () => {
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Noche');
+    expect(text).toContain('Night');
     expect(text).toContain('Luna');
     expect(text).toContain('Azul');
+    expect(text).toContain('Directo');
     expect(text).toContain('1:35');
     fixture.componentInstance.showSection('search');
     fixture.detectChanges();
@@ -75,10 +79,12 @@ describe('AudioPlayer', () => {
             path: 'p',
             extension: 'mp3',
             title: 'Noche',
+            secondaryTitle: 'Night',
             artist: 'Luna',
             album: 'Azul',
             durationSeconds: 95,
             trackNumber: 3,
+            tags: ['Directo'],
           },
         },
         {
@@ -103,6 +109,8 @@ describe('AudioPlayer', () => {
     const text = fixture.nativeElement.textContent as string;
     expect(text.indexOf('Amanecer')).toBeGreaterThan(-1);
     expect(text.indexOf('Amanecer')).toBeLessThan(text.indexOf('Noche'));
+    expect(text).toContain('Night');
+    expect(text).toContain('Directo');
     expect(text).toContain('2 canciones');
     const chip = fixture.nativeElement.querySelector('.playlist-chip') as HTMLElement;
     expect(chip.textContent).toContain('2');
@@ -147,5 +155,130 @@ describe('AudioPlayer', () => {
     ]);
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).toContain('Nueva');
+  });
+
+  it('saves a secondary title without rewriting the main title, then replaces tags', () => {
+    const track = fixture.componentInstance.catalog()[0];
+    fixture.componentInstance.editing.set(track);
+    fixture.componentInstance.saveMetadata({
+      patch: { secondaryTitle: null, artist: 'Luna', album: 'Azul', trackNumber: 3 },
+      tags: ['Live'],
+    });
+
+    const patch = http.expectOne((request) => request.method === 'PATCH' && request.url.endsWith('/audios/4'));
+    expect(patch.request.body).toEqual({
+      secondaryTitle: null,
+      artist: 'Luna',
+      album: 'Azul',
+      trackNumber: 3,
+    });
+    expect(patch.request.body.title).toBeUndefined();
+    patch.flush({
+      id: 4,
+      name: 'song.mp3',
+      title: 'Noche',
+      secondaryTitle: null,
+      artist: 'Luna',
+      album: 'Azul',
+      extension: 'mp3',
+      tags: ['Directo'],
+    });
+
+    const tags = http.expectOne((request) => request.method === 'PUT' && request.url.endsWith('/audios/4/tags'));
+    expect(tags.request.body).toEqual({ tags: ['Live'] });
+    tags.flush({
+      id: 4,
+      name: 'song.mp3',
+      title: 'Noche',
+      secondaryTitle: null,
+      extension: 'mp3',
+      tags: ['Live'],
+    });
+    http
+      .expectOne(
+        (request) =>
+          request.method === 'GET' &&
+          request.url.endsWith('/audios') &&
+          !request.params.has('q') &&
+          !request.params.has('tag'),
+      )
+      .flush([]);
+  });
+
+  it('filters by a tag and combines that filter with the current search', async () => {
+    fixture.componentInstance.showSection('tags');
+    http.expectOne((request) => request.method === 'GET' && request.url.endsWith('/tags')).flush([
+      { id: 1, name: 'Live', audioCount: 4, artistCount: 1, playlistCount: 2 },
+    ]);
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('4 canciones');
+    expect(text).toContain('1 artista');
+    expect(text).toContain('2 listas');
+
+    fixture.componentInstance.query.set('noche');
+    const row = fixture.nativeElement.querySelector('.tag-row') as HTMLButtonElement;
+    row.click();
+    http.expectOne((request) => request.params.get('tag') === 'Live' && !request.params.has('q')).flush([]);
+    http
+      .expectOne((request) => request.params.get('tag') === 'Live' && request.params.get('q') === 'noche')
+      .flush([
+        {
+          id: 4,
+          name: 'song.mp3',
+          path: 'p',
+          extension: 'mp3',
+          title: 'Noche',
+          secondaryTitle: 'Night',
+          artist: 'Luna',
+          album: 'Azul',
+          durationSeconds: 95,
+          trackNumber: 3,
+          tags: ['Live'],
+        },
+      ]);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.section()).toBe('search');
+    expect(fixture.nativeElement.textContent).toContain('Night');
+    expect(fixture.nativeElement.textContent).toContain('Se combina con la búsqueda');
+
+    fixture.componentInstance.onSearchInput({ target: { value: 'luna' } } as unknown as Event);
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    const searched = http.expectOne(
+      (request) => request.params.get('q') === 'luna' && request.params.get('tag') === 'Live',
+    );
+    searched.flush([]);
+  });
+
+  it('lists artists with their counts and opens tag editing', () => {
+    fixture.componentInstance.showSection('artists');
+    http.expectOne((request) => request.method === 'GET' && request.url.endsWith('/artists')).flush([
+      { id: 4, name: 'Luna', audioCount: 9, tags: ['Live'] },
+    ]);
+    fixture.detectChanges();
+    const text = fixture.nativeElement.textContent as string;
+    expect(text).toContain('Luna');
+    expect(text).toContain('9 canciones');
+    expect(text).toContain('Live');
+
+    const edit = fixture.nativeElement.querySelector(
+      'button[aria-label="Editar etiquetas de Luna"]',
+    ) as HTMLButtonElement;
+    edit.click();
+    http.expectOne((request) => request.method === 'GET' && request.url.endsWith('/tags')).flush([
+      { id: 1, name: 'Live', audioCount: 4, artistCount: 1, playlistCount: 0 },
+    ]);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Etiquetas de Luna');
+
+    fixture.componentInstance.saveTags(['Pop']);
+    const saved = http.expectOne((request) => request.method === 'PUT' && request.url.endsWith('/artists/4/tags'));
+    expect(saved.request.body).toEqual({ tags: ['Pop'] });
+    saved.flush({ id: 4, name: 'Luna', audioCount: 9, tags: ['Pop'] });
+    http.expectOne((request) => request.method === 'GET' && request.url.endsWith('/tags')).flush([
+      { id: 2, name: 'Pop', audioCount: 0, artistCount: 1, playlistCount: 0 },
+    ]);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.artists()[0]?.tags).toEqual(['Pop']);
   });
 });

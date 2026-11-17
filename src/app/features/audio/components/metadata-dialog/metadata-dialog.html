@@ -2,12 +2,17 @@
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="metadata-title" (click)="$event.stopPropagation()">
     <header class="dialog-header">
       <h2 id="metadata-title">Editar canción</h2>
-      <p class="dialog-subtitle">Título, artista, álbum y número de pista.</p>
+      <p class="dialog-subtitle">El título principal solo cambia si lo editas.</p>
     </header>
     <div class="dialog-body">
       <label class="field">
         <span class="field-label">Título</span>
         <input class="field-input" type="text" [value]="title()" (input)="onTitle($event)" autocomplete="off">
+      </label>
+      <label class="field">
+        <span class="field-label">Título secundario</span>
+        <input class="field-input" type="text" [value]="secondary()" (input)="onSecondary($event)" autocomplete="off" placeholder="Traducción u otro nombre">
+        <span class="field-hint">Vacío lo borra.</span>
       </label>
       <label class="field">
         <span class="field-label">Artista</span>
@@ -21,6 +26,14 @@
         <span class="field-label">Nº de pista</span>
         <input class="field-input" type="text" inputmode="numeric" [value]="trackNumber()" (input)="onTrackNumber($event)" autocomplete="off">
       </label>
+      <div class="field">
+        <span class="field-label">Etiquetas</span>
+        <app-tag-editor
+          [tags]="tags()"
+          [suggestions]="suggestions()"
+          (tagsChange)="tags.set($event)"
+        ></app-tag-editor>
+      </div>
       @if (formError()) {
         <p class="message message-error">{{ formError() }}</p>
       }

@@ -14,10 +14,12 @@ describe('PlayerService', () => {
       path: '',
       extension: 'mp3',
       title: 'Uno',
+      secondaryTitle: null,
       artist: 'A',
       album: 'B',
       durationSeconds: 30,
       trackNumber: 1,
+      tags: [],
     },
     {
       id: 2,
@@ -25,10 +27,12 @@ describe('PlayerService', () => {
       path: '',
       extension: 'mp3',
       title: 'Dos',
+      secondaryTitle: 'Two',
       artist: 'A',
       album: 'B',
       durationSeconds: 40,
       trackNumber: 2,
+      tags: ['Live'],
     },
   ];
 

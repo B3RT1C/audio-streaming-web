@@ -72,19 +72,46 @@ svg {
   flex-direction: column;
 }
 
+.title-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
 .title,
-.sub {
+.sub,
+.alt,
+.q-title,
+.q-alt,
+.q-sub {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.title {
+.title,
+.q-title {
   color: #fff;
   font-weight: 680;
 }
 
-.sub {
+.title-line .title {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.alt,
+.q-alt {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: #8d8d95;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
+.sub,
+.q-sub {
   color: var(--text-muted);
   font-size: 0.8rem;
 }
@@ -201,6 +228,12 @@ svg {
     margin: 0.25rem 0 0;
     color: var(--text-muted);
   }
+
+  .alt {
+    color: #9a9aa3;
+    font-size: 0.95rem;
+    white-space: normal;
+  }
 }
 
 .seek {
@@ -274,15 +307,15 @@ svg {
     justify-content: center;
     padding: 0.3rem 0.4rem;
 
-    span:last-child {
-      color: var(--text-muted);
-      font-size: 0.8rem;
-    }
-
-    &.current span:first-child {
+    &.current .q-title {
       color: var(--accent);
     }
   }
+}
+
+.queue-scroll {
+  max-height: min(42vh, 22rem);
+  overflow: auto;
 }
 
 @keyframes rise {

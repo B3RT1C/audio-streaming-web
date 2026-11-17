@@ -1,34 +1,48 @@
 import { Component, input, OnInit, output, signal } from '@angular/core';
-import { Track, TrackMetadataPatch, trackTitle } from '../../models/track';
+import { Track, TrackEdit, trackTitle } from '../../models/track';
+import { TagEditor } from '../tag-editor/tag-editor';
 
 @Component({
   selector: 'app-metadata-dialog',
+  imports: [TagEditor],
   templateUrl: './metadata-dialog.html',
   styleUrl: './metadata-dialog.scss',
 })
 export class MetadataDialog implements OnInit {
   readonly track = input.required<Track>();
   readonly busy = input(false);
+  readonly suggestions = input<string[]>([]);
 
-  readonly saved = output<TrackMetadataPatch>();
+  readonly saved = output<TrackEdit>();
   readonly cancelled = output<void>();
 
   readonly title = signal('');
+  readonly secondary = signal('');
   readonly artist = signal('');
   readonly album = signal('');
   readonly trackNumber = signal('');
+  readonly tags = signal<string[]>([]);
   readonly formError = signal('');
+
+  private initialTitle = '';
 
   ngOnInit(): void {
     const track = this.track();
-    this.title.set(trackTitle(track));
+    this.initialTitle = trackTitle(track);
+    this.title.set(this.initialTitle);
+    this.secondary.set(track.secondaryTitle ?? '');
     this.artist.set(track.artist ?? '');
     this.album.set(track.album ?? '');
     this.trackNumber.set(track.trackNumber == null ? '' : String(track.trackNumber));
+    this.tags.set([...track.tags]);
   }
 
   onTitle(event: Event): void {
     this.title.set((event.target as HTMLInputElement).value);
+  }
+
+  onSecondary(event: Event): void {
+    this.secondary.set((event.target as HTMLInputElement).value);
   }
 
   onArtist(event: Event): void {
@@ -59,11 +73,16 @@ export class MetadataDialog implements OnInit {
       trackNumber = Number(rawNumber);
     }
     this.formError.set('');
+    const secondary = this.secondary().trim();
     this.saved.emit({
-      title,
-      artist: this.artist().trim(),
-      album: this.album().trim(),
-      trackNumber,
+      patch: {
+        ...(title !== this.initialTitle ? { title } : {}),
+        secondaryTitle: secondary || null,
+        artist: this.artist().trim(),
+        album: this.album().trim(),
+        trackNumber,
+      },
+      tags: this.tags(),
     });
   }
 

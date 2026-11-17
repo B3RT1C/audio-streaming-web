@@ -10,11 +10,9 @@
 
 .tracks li {
   position: relative;
-  display: flex;
-  align-items: center;
   min-height: 64px;
   border-radius: 8px;
-  contain-intrinsic-size: auto 64px;
+  contain-intrinsic-size: auto 76px;
 
   &.playing {
     background: var(--accent-soft);
@@ -27,6 +25,23 @@
   &.drag-over {
     background: var(--surface-hover);
   }
+}
+
+.tracks.virtual {
+  position: relative;
+}
+
+.tracks.virtual > li {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  overflow: hidden;
+}
+
+.topline {
+  display: flex;
+  align-items: center;
 }
 
 .track-main {
@@ -82,10 +97,32 @@
   font-size: 0.98rem;
 }
 
+.alt {
+  color: #8d8d95;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
 .sub,
 .dur {
   color: var(--text-muted);
   font-size: 0.82rem;
+}
+
+.chips {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding: 0.05rem 3rem 0.5rem 3.85rem;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+li:has(.grip) .chips {
+  padding-left: calc(44px + 3.85rem);
 }
 
 .dur {

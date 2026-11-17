@@ -26,9 +26,16 @@ describe('PlaylistService', () => {
       summaries = playlists;
     });
     http.expectOne(config.url('/playlists')).flush([
-      { id: 1, name: 'Noche', itemCount: 3, createdAt: '2026-11-16T00:00:00Z', updatedAt: '2026-11-16T00:00:00Z' },
+      {
+        id: 1,
+        name: 'Noche',
+        itemCount: 3,
+        tags: ['Noche'],
+        createdAt: '2026-11-16T00:00:00Z',
+        updatedAt: '2026-11-16T00:00:00Z',
+      },
     ]);
-    expect(summaries).toEqual([{ id: 1, name: 'Noche', itemCount: 3, items: null }]);
+    expect(summaries).toEqual([{ id: 1, name: 'Noche', itemCount: 3, items: null, tags: ['Noche'] }]);
 
     service.create('Gym').subscribe();
     const created = http.expectOne(config.url('/playlists'));
@@ -82,5 +89,17 @@ describe('PlaylistService', () => {
     const removed = http.expectOne(config.url('/playlists/3/items/4'));
     expect(removed.request.method).toBe('DELETE');
     removed.flush(null);
+  });
+
+  it('replaces playlist tags', () => {
+    let names: string[] = [];
+    service.replaceTags(3, ['Live']).subscribe((playlist) => {
+      names = playlist?.tags ?? [];
+    });
+    const req = http.expectOne(config.url('/playlists/3/tags'));
+    expect(req.request.method).toBe('PUT');
+    expect(req.request.body).toEqual({ tags: ['Live'] });
+    req.flush({ id: 3, name: 'Noche', itemCount: 0, items: [], tags: ['Live'] });
+    expect(names).toEqual(['Live']);
   });
 });

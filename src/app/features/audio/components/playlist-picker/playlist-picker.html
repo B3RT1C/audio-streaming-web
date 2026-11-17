@@ -2,7 +2,12 @@
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="picker-title" (click)="$event.stopPropagation()">
     <header class="dialog-header">
       <h2 id="picker-title">Añadir a una lista</h2>
-      <p class="dialog-subtitle">{{ titleOf(track()) }}</p>
+      <p class="dialog-subtitle">
+        {{ titleOf(track()) }}
+        @if (secondaryOf(track())) {
+          <span class="alt"> · {{ secondaryOf(track()) }}</span>
+        }
+      </p>
     </header>
     <div class="dialog-body">
       @if (playlists().length === 0) {

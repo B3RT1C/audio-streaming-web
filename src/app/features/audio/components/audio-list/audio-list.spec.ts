@@ -11,10 +11,12 @@ describe('AudioList', () => {
     path: '',
     extension: 'mp3',
     title: 'Canción',
+    secondaryTitle: 'Song',
     artist: 'Artista',
     album: 'Álbum',
     durationSeconds: 125,
     trackNumber: 2,
+    tags: ['Live'],
   };
 
   beforeEach(async () => {
@@ -27,13 +29,33 @@ describe('AudioList', () => {
     fixture.detectChanges();
   });
 
-  it('shows title, artist, album and duration', () => {
+  it('shows title, secondary title, artist, album, duration and tags', () => {
     const text = fixture.nativeElement.textContent as string;
     expect(text).toContain('Canción');
+    expect(text).toContain('Song');
     expect(text).toContain('Artista');
     expect(text).toContain('Álbum');
     expect(text).toContain('2:05');
-    expect(text).toContain('2');
+    expect(text).toContain('Live');
+    const chip = fixture.nativeElement.querySelector('button[aria-label="Filtrar por Live"]') as HTMLButtonElement;
+    const picked: string[] = [];
+    fixture.componentInstance.tagSelected.subscribe((tag) => picked.push(tag));
+    chip.click();
+    expect(picked).toEqual(['Live']);
+  });
+
+  it('renders only a window of a multi-thousand library', () => {
+    const entries = Array.from({ length: 7000 }, (_, index) => ({
+      audioId: index + 1,
+      track: { ...track, id: index + 1, title: `Tema ${index + 1}`, secondaryTitle: null, tags: [] as string[] },
+    }));
+    fixture.componentRef.setInput('entries', entries);
+    fixture.detectChanges();
+    const rows = fixture.nativeElement.querySelectorAll('.tracks li');
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.length).toBeLessThan(80);
+    expect(fixture.nativeElement.textContent).toContain('Tema 1');
+    expect(fixture.nativeElement.textContent).not.toContain('Tema 7000');
   });
 
   it('asks before deleting a track from the library', () => {

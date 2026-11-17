@@ -61,6 +61,13 @@ export class PlaylistService {
       .pipe(map((body) => normalizePlaylist(body)));
   }
 
+  /** Replaces the playlist's tags. The response includes items and tags. */
+  replaceTags(id: number, tags: string[]): Observable<Playlist | null> {
+    return this.http
+      .put<unknown>(`${this.one(id)}/tags`, { tags })
+      .pipe(map((body) => normalizePlaylist(body)));
+  }
+
   private collection(): string {
     return this.config.url(API_PATHS.playlists);
   }
