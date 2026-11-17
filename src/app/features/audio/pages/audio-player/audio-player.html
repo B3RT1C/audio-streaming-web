@@ -19,9 +19,10 @@
           type="button"
           class="playlist-chip"
           [class.active]="activePlaylist()?.id === playlist.id"
+          [attr.title]="playlist.name"
           (click)="openPlaylist(playlist.id)"
         >
-          <span>{{ playlist.name }}</span>
+          <span class="side-name" [attr.title]="playlist.name">{{ playlist.name }}</span>
           <span class="chip-count">{{ playlist.itemCount }}</span>
         </button>
       }
@@ -64,12 +65,12 @@
             <span class="hero-art" [style.background]="cover(playlist.name).background" aria-hidden="true">{{ cover(playlist.name).initials }}</span>
             <div class="hero-copy">
               <p class="eyebrow">Playlist</p>
-              <h1>{{ playlist.name }}</h1>
+              <h1 [attr.title]="playlist.name">{{ playlist.name }}</h1>
               <p class="count">{{ trackCountLabel() }}</p>
               @if (playlist.tags.length) {
                 <div class="chip-row">
                   @for (tag of playlist.tags; track tag) {
-                    <button type="button" class="tag-chip" [attr.aria-label]="'Filtrar por etiqueta de lista ' + tag" (click)="applyPlaylistTag(tag)">{{ tag }}</button>
+                    <button type="button" class="tag-chip" [attr.title]="tag" [attr.aria-label]="'Filtrar por etiqueta de lista ' + tag" (click)="applyPlaylistTag(tag)"><span class="chip-name">{{ tag }}</span></button>
                   }
                 </div>
               }
@@ -185,13 +186,13 @@
               <article class="playlist-card">
                 <button type="button" class="card-open" (click)="openPlaylist(playlist.id)">
                   <span class="card-art" [style.background]="cover(playlist.name).background">{{ cover(playlist.name).initials }}</span>
-                  <span class="card-name">{{ playlist.name }}</span>
+                  <span class="card-name" [attr.title]="playlist.name">{{ playlist.name }}</span>
                   <span class="card-meta">{{ playlist.itemCount }} {{ playlist.itemCount === 1 ? 'canción' : 'canciones' }}</span>
                 </button>
                 @if (playlist.tags.length) {
                   <div class="chip-row">
                     @for (tag of playlist.tags; track tag) {
-                      <button type="button" class="tag-chip" [attr.aria-label]="'Filtrar por etiqueta de lista ' + tag" (click)="applyPlaylistTag(tag)">{{ tag }}</button>
+                      <button type="button" class="tag-chip" [attr.title]="tag" [attr.aria-label]="'Filtrar por etiqueta de lista ' + tag" (click)="applyPlaylistTag(tag)"><span class="chip-name">{{ tag }}</span></button>
                     }
                   </div>
                 }
@@ -240,14 +241,14 @@
                 <button type="button" class="catalog-main" (click)="searchArtist(artist.name)">
                   <span class="art" [style.background]="cover(artist.name).background" aria-hidden="true">{{ cover(artist.name).initials }}</span>
                   <span class="meta">
-                    <span class="title">{{ artist.name }}</span>
+                    <span class="title" [attr.title]="artist.name">{{ artist.name }}</span>
                     <span class="sub">{{ label(artist.audioCount, 'canción', 'canciones') }}</span>
                   </span>
                 </button>
                 @if (artist.tags.length) {
                   <div class="chip-row inset">
                     @for (tag of artist.tags; track tag) {
-                      <button type="button" class="tag-chip" [attr.aria-label]="'Filtrar por etiqueta de artista ' + tag" (click)="applyArtistTag(tag)">{{ tag }}</button>
+                      <button type="button" class="tag-chip" [attr.title]="tag" [attr.aria-label]="'Filtrar por etiqueta de artista ' + tag" (click)="applyArtistTag(tag)"><span class="chip-name">{{ tag }}</span></button>
                     }
                   </div>
                 }

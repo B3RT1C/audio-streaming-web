@@ -2,7 +2,7 @@
   @if (tags().length) {
     <ul class="picked">
       @for (tag of tags(); track tag) {
-        <li>
+        <li [attr.title]="tag">
           <span>{{ tag }}</span>
           <button type="button" [attr.aria-label]="'Quitar ' + tag" (click)="remove(tag)">×</button>
         </li>
@@ -33,6 +33,7 @@
           <button
             type="button"
             [class.active]="active() === i"
+            [attr.title]="option.name"
             (mousedown)="$event.preventDefault(); add(option.name)"
           >
             {{ option.kind === 'create' ? 'Crear «' + option.name + '»' : option.name }}

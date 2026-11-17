@@ -28,6 +28,9 @@ svg {
   align-items: center;
   gap: 0.7rem;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
   min-height: var(--player-h);
   padding: 0.45rem 0.7rem 0.45rem 0.55rem;
   border: 0;
@@ -67,9 +70,11 @@ svg {
 
 .now {
   min-width: 0;
+  max-width: 100%;
   flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .title-line {
@@ -85,6 +90,8 @@ svg {
 .q-title,
 .q-alt,
 .q-sub {
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -98,13 +105,13 @@ svg {
 }
 
 .title-line .title {
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-width: 0;
 }
 
 .alt,
 .q-alt {
-  flex: 1 1 auto;
+  flex: 1 1 40%;
   min-width: 0;
   color: #8d8d95;
   font-size: 0.78rem;
@@ -204,7 +211,8 @@ svg {
     calc(1rem + env(safe-area-inset-bottom));
   background-color: #070708;
   background-image: radial-gradient(90% 46% at 50% 0%, color-mix(in srgb, var(--wash) 62%, #070708), transparent 70%);
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   animation: rise 220ms ease;
 }
 
@@ -237,6 +245,22 @@ svg {
 }
 
 .full-copy {
+  min-width: 0;
+  max-width: 100%;
+
+  h2,
+  p,
+  .alt {
+    max-width: 100%;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+  }
+
   h2 {
     margin: 0;
     font-size: 1.55rem;
@@ -251,7 +275,6 @@ svg {
   .alt {
     color: #9a9aa3;
     font-size: 0.95rem;
-    white-space: normal;
   }
 }
 
@@ -316,6 +339,8 @@ svg {
 
   button {
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
     min-height: 48px;
     border: 0;
     background: transparent;
@@ -325,6 +350,7 @@ svg {
     flex-direction: column;
     justify-content: center;
     padding: 0.3rem 0.4rem;
+    overflow: hidden;
 
     &.current .q-title {
       color: var(--accent);
@@ -357,7 +383,7 @@ svg {
 
   .desk {
     display: grid;
-    grid-template-columns: minmax(12rem, 1fr) minmax(16rem, 32rem) auto;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 32rem) auto;
     gap: 1rem;
     align-items: center;
     min-height: var(--player-h);
@@ -369,6 +395,8 @@ svg {
     align-items: center;
     gap: 0.75rem;
     min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
     border: 0;
     background: transparent;
     color: inherit;

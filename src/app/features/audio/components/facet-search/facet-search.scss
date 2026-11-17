@@ -45,6 +45,8 @@
   align-items: center;
   gap: 0.35rem;
   max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
   min-height: var(--chip-min-h);
   padding: 0 0.1rem 0 0.55rem;
   border: 1px solid color-mix(in srgb, var(--tone) 50%, transparent);
@@ -66,9 +68,13 @@
   align-items: baseline;
   gap: 0.35rem;
   min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
 }
 
 .chip-value {
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -79,6 +85,10 @@
 
 .chip-kind {
   flex: none;
+  max-width: 46%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--tone);
   font-size: var(--font-chip-kind);
   font-weight: 700;
@@ -116,11 +126,15 @@
   align-items: center;
   gap: 0.45rem;
   margin: 0.5rem 0.55rem 0.15rem;
+  min-width: 0;
+  overflow: hidden;
   color: #d4d4dc;
   font-size: var(--font-group);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .facet-option {

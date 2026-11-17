@@ -17,6 +17,8 @@
     align-items: center;
     gap: 0.1rem;
     max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
     min-height: var(--chip-min-h);
     padding: 0.15rem 0.15rem 0.15rem 0.75rem;
     border-radius: var(--chip-radius);
@@ -26,6 +28,8 @@
   }
 
   span {
+    flex: 1 1 auto;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -63,13 +67,19 @@
   overflow: auto;
 
   button {
+    display: block;
     width: 100%;
+    min-width: 0;
+    max-width: 100%;
     min-height: 44px;
     border: 0;
     border-radius: 8px;
     background: transparent;
     text-align: left;
     padding: 0 0.75rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     color: #f5f5f5;
 
     &.active {

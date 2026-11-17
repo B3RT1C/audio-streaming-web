@@ -1,7 +1,7 @@
 <div class="dialog-backdrop" (click)="onBackdrop($event)">
   <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="tags-dialog-title" (click)="$event.stopPropagation()">
     <header class="dialog-header">
-      <h2 id="tags-dialog-title">{{ title() }}</h2>
+      <h2 id="tags-dialog-title" [attr.title]="title()">{{ title() }}</h2>
       <p class="dialog-subtitle">{{ subtitle() }}</p>
     </header>
     <div class="dialog-body">

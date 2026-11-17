@@ -151,7 +151,8 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  max-width: min(100%, 16rem);
+  max-width: 100%;
+  min-width: 0;
   min-height: var(--chip-min-h);
   padding: 0.2rem 0.75rem;
   border: 0;
@@ -161,12 +162,15 @@ button {
   font-size: var(--font-chip);
   font-weight: 650;
   line-height: 1.25;
-  white-space: nowrap;
+  overflow: hidden;
+  box-sizing: border-box;
 
   .chip-name {
+    flex: 1 1 auto;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-    min-width: 0;
+    white-space: nowrap;
   }
 
   &.current {
@@ -177,6 +181,8 @@ button {
 
 .field-input {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg);
@@ -203,6 +209,8 @@ button {
 
 .dialog {
   width: min(32rem, 100%);
+  min-width: 0;
+  max-width: 100%;
   max-height: min(92dvh, 44rem);
   display: flex;
   flex-direction: column;
@@ -214,12 +222,26 @@ button {
 }
 
 .dialog-header {
+  min-width: 0;
+  max-width: 100%;
   padding: 1.1rem 1.1rem 0.4rem;
 
   h2 {
     margin: 0;
     font-size: 1.15rem;
   }
+}
+
+.dialog-header h2,
+.dialog-subtitle {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .dialog-subtitle {
@@ -241,7 +263,12 @@ button {
 .dialog-actions {
   display: flex;
   justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 0.6rem;
+
+  .btn {
+    flex: none;
+  }
   padding: 0.85rem 1.1rem calc(0.9rem + env(safe-area-inset-bottom));
   border-top: 1px solid var(--border);
 }

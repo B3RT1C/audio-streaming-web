@@ -58,6 +58,28 @@ describe('AudioList', () => {
     expect(fixture.nativeElement.textContent).not.toContain('Tema 7000');
   });
 
+  it('keeps a very long title intact in the tooltip and leaves the row actions in place', () => {
+    const solid = 'Anticonstitucionalmente'.repeat(8);
+    const spaced = 'La canción más larga del catálogo de verano '.repeat(4).trim();
+    fixture.componentRef.setInput('entries', [
+      {
+        audioId: 1,
+        track: { ...track, title: solid, secondaryTitle: spaced, artist: solid, album: spaced, tags: [solid] },
+      },
+    ]);
+    fixture.detectChanges();
+
+    const root = fixture.nativeElement as HTMLElement;
+    expect(root.querySelector('.title')?.getAttribute('title')).toBe(solid);
+    expect(root.querySelector('.alt')?.getAttribute('title')).toBe(spaced);
+    expect(root.querySelector('.sub')?.getAttribute('title')).toBe(`${solid} · ${spaced}`);
+    expect(root.querySelector('.tag-chip')?.getAttribute('title')).toBe(solid);
+    expect(root.textContent).toContain(solid);
+    expect(root.textContent).toContain(spaced);
+    expect(root.querySelector('button[aria-label="Más opciones"]')).not.toBeNull();
+    expect(root.querySelector('.dur')?.textContent).toContain('2:05');
+  });
+
   it('asks before deleting a track from the library', () => {
     const more = fixture.nativeElement.querySelector('button[aria-label="Más opciones"]') as HTMLButtonElement;
     more.click();

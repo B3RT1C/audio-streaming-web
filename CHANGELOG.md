@@ -5,6 +5,7 @@
 - Pulido visual: chips del buscador con el valor en texto legible y el tipo como etiqueta, input en su propia línea, autocompletado con la misma tipografía y etiquetas derivadas completas en el editor.
 - La pestaña inferior dice Etiquetas. La clave de un tipo propio se genera desde el nombre y queda en opciones avanzadas.
 - `GET /tags` puede traer `type` como objeto `{ id, key, name, system }`. La vista agrupa por `type.key` y no pinta de golpe los miles de etiquetas de género, álbum o año.
+- Los títulos, artistas y etiquetas largos se recortan a una o dos líneas. El texto completo queda en el tooltip y los botones no se salen de la pantalla.
 
 ## 0.4.1
 

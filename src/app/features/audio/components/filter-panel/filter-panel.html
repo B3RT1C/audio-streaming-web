@@ -24,10 +24,12 @@
           class="tag-chip current"
           [class.typed]="!!chip.type"
           [style.--tone]="chip.type ? tone(chip.type) : null"
+          [attr.title]="chip.label"
           [attr.aria-label]="'Quitar ' + chip.label"
           (click)="remove(chip)"
         >
-          {{ chip.label }} <span aria-hidden="true">×</span>
+          <span class="chip-name">{{ chip.label }}</span>
+          <span class="chip-x" aria-hidden="true">×</span>
         </button>
       }
     </div>

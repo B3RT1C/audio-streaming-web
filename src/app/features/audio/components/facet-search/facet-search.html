@@ -1,7 +1,7 @@
 <div class="facet">
   <div class="facet-box">
     @for (token of tokens(); track tokenKey(token)) {
-      <span class="facet-chip" [style.--tone]="chipColor(token.type)" [attr.title]="chipKind(token)">
+      <span class="facet-chip" [style.--tone]="chipColor(token.type)" [attr.title]="token.value + ' · ' + chipKind(token)">
         <span class="swatch" aria-hidden="true"></span>
         <span class="chip-copy">
           <span class="chip-value">{{ token.value }}</span>
@@ -48,6 +48,7 @@
             class="facet-option"
             [class.active]="active() === item.index"
             [attr.aria-selected]="active() === item.index"
+            [attr.title]="item.row.kind === 'prefix' ? item.row.label : item.row.value"
             (mousedown)="$event.preventDefault(); pick(item.row)"
           >
             <span class="option-label">
