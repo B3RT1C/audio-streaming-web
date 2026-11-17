@@ -1,10 +1,16 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { Track } from '../models/track';
+import { PLAY_QUEUE_STORAGE_KEY } from '../utils/play-event-queue';
 import { PlayerService } from './player.service';
 
 describe('PlayerService', () => {
   beforeEach(() => {
-    TestBed.configureTestingModule({});
+    localStorage.removeItem(PLAY_QUEUE_STORAGE_KEY);
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
   });
 
   const tracks: Track[] = [
@@ -118,5 +124,73 @@ describe('PlayerService', () => {
     service.removeTrack(1);
     expect(service.queue().map((track) => track.id)).toEqual([2]);
     expect(service.current()?.id).toBe(2);
+  });
+
+  it('counts real playback across pause and seek, then reports the listen when the track changes', async () => {
+    const service = TestBed.inject(PlayerService);
+    const http = TestBed.inject(HttpTestingController);
+    const listeners = new Map<string, (() => void)[]>();
+    const audio = fakeAudio();
+    audio.addEventListener = vi.fn((type: string, handler: () => void) => {
+      listeners.set(type, [...(listeners.get(type) ?? []), handler]);
+    });
+    const emit = (type: string) => listeners.get(type)?.forEach((handler) => handler());
+    service.bind(audio as unknown as HTMLAudioElement);
+
+    service.playTracks(tracks, 1, { source: 'library' });
+    audio.paused = false;
+    for (let second = 1; second <= 8; second += 1) {
+      audio.currentTime = second;
+      emit('timeupdate');
+    }
+    audio.paused = true;
+    emit('timeupdate');
+    service.seek(20);
+    audio.paused = false;
+    audio.currentTime = 20;
+    emit('timeupdate');
+    for (let second = 21; second <= 24; second += 1) {
+      audio.currentTime = second;
+      emit('timeupdate');
+    }
+    service.next();
+
+    const queued = JSON.parse(localStorage.getItem(PLAY_QUEUE_STORAGE_KEY) ?? '[]') as { listenedSeconds: number; completed: boolean; audioId: number; source: string }[];
+    expect(queued).toHaveLength(1);
+    expect(queued[0]).toMatchObject({ listenedSeconds: 12, completed: false, audioId: 1, source: 'library' });
+
+    await Promise.resolve();
+    const request = http.expectOne((candidate) => candidate.url.endsWith('/plays'));
+    expect(request.request.body).toMatchObject({ listenedSeconds: 12, clientEventId: expect.any(String) });
+    request.flush({}, { status: 201, statusText: 'Created' });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(JSON.parse(localStorage.getItem(PLAY_QUEUE_STORAGE_KEY) ?? '[]')).toEqual([]);
+  });
+
+  it('marks the listen completed when the song ends', async () => {
+    const service = TestBed.inject(PlayerService);
+    const http = TestBed.inject(HttpTestingController);
+    const listeners = new Map<string, (() => void)[]>();
+    const audio = fakeAudio();
+    audio.duration = 30;
+    audio.addEventListener = vi.fn((type: string, handler: () => void) => {
+      listeners.set(type, [...(listeners.get(type) ?? []), handler]);
+    });
+    const emit = (type: string) => listeners.get(type)?.forEach((handler) => handler());
+    service.bind(audio as unknown as HTMLAudioElement);
+    service.playTracks([tracks[0]], 1, { source: 'search' });
+
+    audio.paused = false;
+    for (let second = 1; second <= 30; second += 1) {
+      audio.currentTime = second;
+      emit('timeupdate');
+    }
+    emit('ended');
+
+    const queued = JSON.parse(localStorage.getItem(PLAY_QUEUE_STORAGE_KEY) ?? '[]') as { listenedSeconds: number; completed: boolean; source: string }[];
+    expect(queued[0]).toMatchObject({ listenedSeconds: 30, completed: true, source: 'search' });
+    await Promise.resolve();
+    http.expectOne((candidate) => candidate.url.endsWith('/plays')).flush({}, { status: 200, statusText: 'OK' });
   });
 });

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0
+
+- El reproductor cuenta el tiempo realmente escuchado (una pausa o un salto hacia delante no suman) y envía la escucha al terminar, al cambiar de canción o al cerrar la página.
+- Si el API no responde, el evento queda en una cola local y se reintenta. El `clientEventId` evita contarlo dos veces. Una escucha de 0 s no se envía.
+- Pantalla de estadísticas: periodo, resumen, línea temporal y rankings de canciones, artistas, etiquetas y playlists. Se abre desde Inicio y desde el menú lateral, sin una sexta pestaña.
+
 ## 0.4.2
 
 - Pulido visual: chips del buscador con el valor en texto legible y el tipo como etiqueta, input en su propia línea, autocompletado con la misma tipografía y etiquetas derivadas completas en el editor.

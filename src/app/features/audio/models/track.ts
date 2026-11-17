@@ -60,6 +60,8 @@ export const API_PATHS = {
   tagTypes: '/tag-types',
   filterSuggest: '/filter/suggest',
   syncStatus: '/sync/status',
+  plays: '/plays',
+  stats: '/stats',
 } as const;
 
 export function normalizeTrackList(raw: unknown): Track[] {

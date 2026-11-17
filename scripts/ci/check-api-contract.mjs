@@ -1,5 +1,5 @@
 /**
- * Validates web API paths against the 0.4.1 client contract.
+ * Validates web API paths against the 0.5.0 client contract.
  * Run: node scripts/ci/check-api-contract.mjs
  */
 import fs from 'node:fs';
@@ -152,6 +152,27 @@ if (!playerPage.includes('playShuffled')) {
   fail('the player must be able to start a shuffled queue');
 }
 
+const playsMatch = track.match(/plays:\s*'(\/[^']+)'/);
+const statsMatch = track.match(/stats:\s*'(\/[^']+)'/);
+if (!playsMatch || playsMatch[1] !== '/plays') {
+  fail(`API_PATHS.plays must be /plays, got ${playsMatch?.[1]}`);
+}
+if (!statsMatch || statsMatch[1] !== '/stats') {
+  fail(`API_PATHS.stats must be /stats, got ${statsMatch?.[1]}`);
+}
+
+const playReportPath = path.join(root, 'src/app/features/audio/services/play-report.service.ts');
+const statsServicePath = path.join(root, 'src/app/features/audio/services/stats.service.ts');
+const playReport = fs.readFileSync(playReportPath, 'utf8');
+const statsService = fs.readFileSync(statsServicePath, 'utf8');
+if (!playReport.includes('API_PATHS.plays')) fail('play reports must post API_PATHS.plays');
+if (playReport.includes('192.168.')) fail('play reports hardcode a LAN address');
+for (const suffix of ['/summary', '/top', '/timeline']) {
+  if (!statsService.includes(`'${suffix}'`)) fail(`stats service must call ${suffix}`);
+}
+if (!statsService.includes('API_PATHS.stats')) fail('stats service must use API_PATHS.stats');
+if (statsService.includes('192.168.')) fail('stats service hardcodes a LAN address');
+
 console.log(
-  'CONTRACT OK: web client matches backend 0.4.1 (/audios?f, /filter/suggest, /tag-types, /playlists, /artists, /tags)',
+  'CONTRACT OK: web client matches backend 0.5.0 (/plays, /stats/summary, /stats/top, /stats/timeline, /audios, /playlists, port 8080)',
 );

@@ -12,6 +12,7 @@
       <button type="button" [class.active]="section() === 'playlists' || !!activePlaylist()" (click)="showSection('playlists')">Playlists</button>
       <button type="button" [class.active]="section() === 'artists'" (click)="showSection('artists')">Artistas</button>
       <button type="button" [class.active]="section() === 'tags'" (click)="showSection('tags')">Etiquetas</button>
+      <button type="button" [class.active]="section() === 'stats'" (click)="showSection('stats')">Estadísticas</button>
     </nav>
     <div class="side-lists">
       @for (playlist of playlists(); track playlist.id) {
@@ -285,6 +286,16 @@
           (deleteType)="deleteTagType($event)"
         ></app-tag-types-view>
       </section>
+    } @else if (section() === 'stats') {
+      <section class="view">
+        <button type="button" class="back" (click)="showLibrary()">Inicio</button>
+        <app-stats-view
+          (openAudio)="openStatsAudio($event)"
+          (openArtist)="openStatsArtist($event)"
+          (openTag)="openStatsTag($event)"
+          (openPlaylist)="openStatsPlaylist($event)"
+        ></app-stats-view>
+      </section>
     } @else {
       <section class="view">
         <header class="top">
@@ -299,6 +310,15 @@
             </button>
           </div>
         </header>
+        <button type="button" class="stats-entry" (click)="showSection('stats')">
+          <span class="stats-entry-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M4 19V9h3v10H4zm6.5 0V5h3v14h-3zM17 19v-7h3v7h-3z"/></svg>
+          </span>
+          <span class="stats-entry-copy">
+            <span class="stats-entry-title">Estadísticas</span>
+            <span class="stats-entry-sub">Escuchas, tiempo y rankings</span>
+          </span>
+        </button>
         <app-facet-search
           [query]="query()"
           [tokens]="facetTokens()"
